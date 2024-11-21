@@ -2,7 +2,6 @@ services:
   - class: org.yamcs.archive.XtceTmRecorder
   - class: org.yamcs.archive.ParameterRecorder
   - class: org.yamcs.archive.AlarmRecorder
-  - class: org.yamcs.archive.EventRecorder
   - class: org.yamcs.archive.ReplayServer
   - class: org.yamcs.parameter.SystemParametersService
     args:
@@ -13,6 +12,14 @@ services:
     args:
       name: realtime
       type: realtime
+      spec: |
+        services:
+          - class: org.yamcs.tctm.ProcessTmPacket
+          - class: org.yamcs.algorithms.AlgorithmManager
+          - class: org.yamcs.parameter.LocalParameterManager
+          - class: org.yamcs.parameter.ParameterRequestManager
+        config:
+          subscribeAll: true
   - class: org.yamcs.archive.CommandHistoryRecorder
   - class: org.yamcs.parameterarchive.ParameterArchive
     args:
@@ -25,27 +32,24 @@ services:
   - class: org.yamcs.timeline.TimelineService
 
 dataLinks:
-  - name: udp-in
+  - name: tm_in
     class: org.yamcs.tctm.UdpTmDataLink
     stream: tm_realtime
     port: 10015
-    packetPreprocessorClassName: com.example.myproject.MyPacketPreprocessor
+    packetPreprocessorClassName: com.example.bossy.MyPacketPreprocessor
 
-  - name: udp-out
+  - name: tc_out
     class: org.yamcs.tctm.UdpTcDataLink
     stream: tc_realtime
     host: localhost
     port: 10025
-    commandPostprocessorClassName: com.example.myproject.MyCommandPostprocessor
+    commandPostprocessorClassName: com.example.bossy.MyCommandPostprocessor
 
 mdb:
-  # Configuration of the active loaders
-  # Valid loaders are: sheet, xtce or fully qualified name of the class
   - type: xtce
     args:
       file: mdb/xtce.xml
 
-# Configuration for streams created at server startup
 streamConfig:
   tm:
     - name: "tm_realtime"
@@ -55,7 +59,7 @@ streamConfig:
   event: ["events_realtime", "events_dump"]
   param: ["pp_realtime", "pp_dump", "sys_param", "proc_param"]
   parameterAlarm: ["alarms_realtime"]
+  eventAlarm: ["event_alarms_realtime"]
   tc:
     - name: "tc_realtime"
       processor: "realtime"
-

@@ -7,14 +7,17 @@ services:
         allowOrigin: "*"
         allowCredentials: false
 
-# This is where Yamcs will persist its data. Paths are resolved relative to where Yamcs is running
-# from (by default: target/yamcs). This means that `mvn clean` will remove also persisted data.
-# Change this property to an absolute path in case you want to persist your data.
+# This is where Yamcs will persist its data
 dataDir: yamcs-data
-
-instances:
-  - myproject
 
 # Secret key unique to a particular Yamcs installation.
 # This is used to provide cryptographic signing.
 secretKey: changeme
+
+# Configuration for the HTTP server
+yamcs-web:
+  tag: "BOSSY Mission Control"
+
+# Instance definitions
+instances:
+  - spacecraft

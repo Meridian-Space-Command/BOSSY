@@ -1,61 +1,21 @@
-<?xml version='1.0' encoding='UTF-8'?>
-<SpaceSystem xmlns="http://www.omg.org/spec/XTCE/20180204" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="spacecraft" xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<SpaceSystem name="myproject" xmlns="http://www.omg.org/spec/XTCE/20180204" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.omg.org/spec/XTCE/20180204 https://www.omg.org/spec/XTCE/20180204/SpaceSystem.xsd">
     <TelemetryMetaData>
         <ParameterTypeSet>
-			
-            <IntegerParameterType name="uint16_t" signed="false">
-                <UnitSet />
-                <IntegerDataEncoding sizeInBits="16" />
-            </IntegerParameterType>
-            
-            <IntegerParameterType name="uint64_t" signed="false">
-                <UnitSet />
-                <IntegerDataEncoding sizeInBits="64" />
-            </IntegerParameterType>
-            
-            <StringParameterType name="string">
-                <UnitSet />
-                <StringDataEncoding>
-                    <SizeInBits>
-                        <Fixed>
-                            <FixedValue>1024</FixedValue>
-                        </Fixed>
-                    </SizeInBits>
-                </StringDataEncoding>
-            </StringParameterType>
-
-            
-            <BooleanParameterType name="bool_t">
-                <UnitSet />
-                <IntegerDataEncoding sizeInBits="8" />
-            </BooleanParameterType>
-			
-            <AbsoluteTimeParameterType name="CUC_Time" sizeInBits="32">
-                <ReferenceTime>
-                    <Epoch>2025-01-01T00:00:00Z</Epoch>
-                </ReferenceTime>
+			<!-- CUC Time Encoding -->
+			<AbsoluteTimeParameterType name="CUC_Time">
+                <Encoding>
+                    <CUCTimeEncoding>
+                        <epoch>2025-01-01T00:00:00Z</epoch>
+                        <implicitPField />
+                        <cucSegments>
+                            <Segment sizeInBits="32" />
+                            <Segment sizeInBits="32" />
+                        </cucSegments>
+                    </CUCTimeEncoding>
+                </Encoding>
             </AbsoluteTimeParameterType>
-
-			
-            <StringParameterType name="String64">
-                <StringDataEncoding>
-                    <SizeInBits>
-                        <Fixed>
-                            <FixedValue>512</FixedValue>
-                        </Fixed>
-                    </SizeInBits>
-                </StringDataEncoding>
-            </StringParameterType>
-
-			
-            <IntegerParameterType name="CCSDS_Version" sizeInBits="3" />
-            <IntegerParameterType name="CCSDS_Type" sizeInBits="1" />
-            <IntegerParameterType name="CCSDS_SecHdrFlag" sizeInBits="1" />
-            <IntegerParameterType name="CCSDS_APID" sizeInBits="11" />
-            <IntegerParameterType name="CCSDS_GroupFlags" sizeInBits="2" />
-            <IntegerParameterType name="CCSDS_SeqCount" sizeInBits="14" />
-            <IntegerParameterType name="CCSDS_Length" sizeInBits="16" />
-
+            <!-- CCSDS Header Types -->
             <IntegerParameterType name="CCSDS_Version_Type" signed="false">
                 <UnitSet />
                 <IntegerDataEncoding sizeInBits="3" />
@@ -84,43 +44,51 @@
                     <Member name="APID" typeRef="CCSDS_APID_Type" />
                 </MemberList>
             </AggregateParameterType>
+
+            <!-- Basic Types -->
             <FloatParameterType name="float_t">
                 <UnitSet />
-                <FloatDataEncoding sizeInBits="32" />
+                <FloatDataEncoding sizeInBits="64" />  <!-- Changed to double precision -->
             </FloatParameterType>
+            <BooleanParameterType name="bool_t">
+                <UnitSet />
+                <IntegerDataEncoding sizeInBits="8" />
+            </BooleanParameterType>
+
+            <!-- Specialized Types -->
             <FloatParameterType name="position_t">
                 <UnitSet>
                     <Unit>m</Unit>
                 </UnitSet>
-                <FloatDataEncoding sizeInBits="32" />
+                <FloatDataEncoding sizeInBits="64" />
             </FloatParameterType>
             <FloatParameterType name="velocity_t">
                 <UnitSet>
                     <Unit>m/s</Unit>
                 </UnitSet>
-                <FloatDataEncoding sizeInBits="32" />
+                <FloatDataEncoding sizeInBits="64" />
             </FloatParameterType>
             <FloatParameterType name="angular_velocity_t">
                 <UnitSet>
                     <Unit>rad/s</Unit>
                 </UnitSet>
-                <FloatDataEncoding sizeInBits="32" />
+                <FloatDataEncoding sizeInBits="64" />
             </FloatParameterType>
             <FloatParameterType name="quaternion_t">
                 <UnitSet />
-                <FloatDataEncoding sizeInBits="32" />
+                <FloatDataEncoding sizeInBits="64" />
             </FloatParameterType>
             <FloatParameterType name="power_t">
                 <UnitSet>
                     <Unit>W</Unit>
                 </UnitSet>
-                <FloatDataEncoding sizeInBits="32" />
+                <FloatDataEncoding sizeInBits="64" />
             </FloatParameterType>
             <FloatParameterType name="temperature_t">
                 <UnitSet>
                     <Unit>K</Unit>
                 </UnitSet>
-                <FloatDataEncoding sizeInBits="32" />
+                <FloatDataEncoding sizeInBits="64" />
             </FloatParameterType>
             <IntegerParameterType name="counter_t" signed="false">
                 <UnitSet />
@@ -143,70 +111,26 @@
 				</EnumerationList>
 			</EnumeratedParameterType>
 			<StringParameterType name="EventMessage">
-                <UnitSet />
-                <StringDataEncoding>
-                    <SizeInBits>
-                        <Fixed>
-                            <FixedValue>2040</FixedValue>
-                        </Fixed>
-                    </SizeInBits>
-                </StringDataEncoding>
-            </StringParameterType>
-            <IntegerParameterType name="uint8_t" signed="false">
-                <UnitSet />
-                <IntegerDataEncoding sizeInBits="8" />
-            </IntegerParameterType>
-            <IntegerParameterType name="command_id_t" signed="false">
-                <UnitSet />
-                <IntegerDataEncoding sizeInBits="8" />
-            </IntegerParameterType>
-            <IntegerParameterType name="subsystem_id_t" signed="false">
-                <UnitSet />
-                <IntegerDataEncoding sizeInBits="8" />
-            </IntegerParameterType>
+				<UnitSet />
+				<StringDataEncoding>
+					<SizeInBits>2040</SizeInBits>
+				</StringDataEncoding>
+			</StringParameterType>
         </ParameterTypeSet>
 
         <ParameterSet>
-
-			
-            <Parameter name="Time" parameterTypeRef="CUC_Time">
-                <ParameterProperties dataSource="telemetered" />
-            </Parameter>
-
-            
-            <Parameter name="Version" parameterTypeRef="CCSDS_Version">
-                <ParameterProperties dataSource="telemetered" />
-            </Parameter>
-            <Parameter name="Type" parameterTypeRef="CCSDS_Type">
-                <ParameterProperties dataSource="telemetered" />
-            </Parameter>
-            <Parameter name="SecHdrFlag" parameterTypeRef="CCSDS_SecHdrFlag">
-                <ParameterProperties dataSource="telemetered" />
-            </Parameter>
-            <Parameter name="APID" parameterTypeRef="CCSDS_APID">
-                <ParameterProperties dataSource="telemetered" />
-            </Parameter>
-            <Parameter name="GroupFlags" parameterTypeRef="CCSDS_GroupFlags">
-                <ParameterProperties dataSource="telemetered" />
-            </Parameter>
-            <Parameter name="SeqCount" parameterTypeRef="CCSDS_SeqCount">
-                <ParameterProperties dataSource="telemetered" />
-            </Parameter>
-            <Parameter name="Length" parameterTypeRef="CCSDS_Length">
-                <ParameterProperties dataSource="telemetered" />
-            </Parameter>
-
+            <!-- CCSDS Headers -->
             <Parameter name="CCSDS_Packet_ID" parameterTypeRef="CCSDS_Packet_ID_Type" />
             <Parameter name="CCSDS_Sequence_Count" parameterTypeRef="CCSDS_Sequence_Count_Type" />
             <Parameter name="CCSDS_Packet_Length" parameterTypeRef="uint16_t" />
 			
-				
+			<!-- Event Parameters -->	
 			<Parameter name="Event_Severity" parameterTypeRef="EventSeverity" />
 			<Parameter name="Event_Message" parameterTypeRef="EventMessage" />
 			<Parameter name="Event_Time" parameterTypeRef="uint64_t" />
 			<Parameter name="Event_Subsystem" parameterTypeRef="string" />
 
-            
+            <!-- State Vector Parameters -->
             <Parameter name="Position_X" parameterTypeRef="position_t" />
             <Parameter name="Position_Y" parameterTypeRef="position_t" />
             <Parameter name="Position_Z" parameterTypeRef="position_t" />
@@ -214,7 +138,7 @@
             <Parameter name="Velocity_Y" parameterTypeRef="velocity_t" />
             <Parameter name="Velocity_Z" parameterTypeRef="velocity_t" />
             
-            
+            <!-- Attitude Parameters -->
             <Parameter name="Attitude_W" parameterTypeRef="quaternion_t" />
             <Parameter name="Attitude_X" parameterTypeRef="quaternion_t" />
             <Parameter name="Attitude_Y" parameterTypeRef="quaternion_t" />
@@ -223,15 +147,15 @@
             <Parameter name="Angular_Velocity_Y" parameterTypeRef="angular_velocity_t" />
             <Parameter name="Angular_Velocity_Z" parameterTypeRef="angular_velocity_t" />
 
-            
+            <!-- Power Parameters -->
             <Parameter name="Battery_Level" parameterTypeRef="float_t" />
             <Parameter name="Solar_Power" parameterTypeRef="power_t" />
             <Parameter name="Power_Consumption" parameterTypeRef="power_t" />
             
-            
+            <!-- Thermal Parameters -->
             <Parameter name="Temperature" parameterTypeRef="temperature_t" />
 
-            
+            <!-- ADCS Parameters -->
             <Parameter name="Wheel_Speed_X" parameterTypeRef="angular_velocity_t" />
             <Parameter name="Wheel_Speed_Y" parameterTypeRef="angular_velocity_t" />
             <Parameter name="Wheel_Speed_Z" parameterTypeRef="angular_velocity_t" />
@@ -242,21 +166,15 @@
             <Parameter name="Magnetic_Field_Y" parameterTypeRef="float_t" />
             <Parameter name="Magnetic_Field_Z" parameterTypeRef="float_t" />
 
-            
+            <!-- Payload Parameters -->
             <Parameter name="Imaging_Active" parameterTypeRef="bool_t" />
             <Parameter name="Images_Taken" parameterTypeRef="counter_t" />
             <Parameter name="Storage_Used" parameterTypeRef="storage_t" />
             <Parameter name="Storage_Available" parameterTypeRef="storage_t" />
-            <Parameter name="Subsystem" parameterTypeRef="subsystem_id_t">
-                <ParameterProperties dataSource="command"/>
-            </Parameter>
-            <Parameter name="Command" parameterTypeRef="command_id_t">
-                <ParameterProperties dataSource="command"/>
-            </Parameter>
         </ParameterSet>
 
         <ContainerSet>
-            
+            <!-- Base CCSDS Container -->
             <SequenceContainer abstract="true" name="CCSDSPacket">
                 <EntryList>
                     <ParameterRefEntry parameterRef="CCSDS_Packet_ID" />
@@ -265,7 +183,7 @@
                 </EntryList>
             </SequenceContainer>
 
-				
+			<!-- Event Container -->	
 			<SequenceContainer name="Event">
 				<EntryList>
 					<ParameterRefEntry parameterRef="Event_Time" />
@@ -276,13 +194,13 @@
 				<BaseContainer containerRef="CCSDSPacket">
 					<RestrictionCriteria>
 						<ComparisonList>
-							<Comparison parameterRef="CCSDS_Packet_ID/APID" value="57344" /> 
+							<Comparison parameterRef="CCSDS_Packet_ID/APID" value="57344" /> <!-- 0xE000 -->
 						</ComparisonList>
 					</RestrictionCriteria>
 				</BaseContainer>
 			</SequenceContainer>
 
-            
+            <!-- Housekeeping Telemetry -->
             <SequenceContainer name="Housekeeping">
                 <EntryList>
                     <ParameterRefEntry parameterRef="Position_X" />
@@ -304,13 +222,13 @@
                 <BaseContainer containerRef="CCSDSPacket">
                     <RestrictionCriteria>
                         <ComparisonList>
-                            <Comparison parameterRef="CCSDS_Packet_ID/APID" value="256" /> 
+                            <Comparison parameterRef="CCSDS_Packet_ID/APID" value="256" /> <!-- 0x100 -->
                         </ComparisonList>
                     </RestrictionCriteria>
                 </BaseContainer>
             </SequenceContainer>
 
-            
+            <!-- ADCS Telemetry -->
             <SequenceContainer name="ADCS">
                 <EntryList>
                     <ParameterRefEntry parameterRef="Wheel_Speed_X" />
@@ -326,13 +244,13 @@
                 <BaseContainer containerRef="CCSDSPacket">
                     <RestrictionCriteria>
                         <ComparisonList>
-                            <Comparison parameterRef="CCSDS_Packet_ID/APID" value="257" /> 
+                            <Comparison parameterRef="CCSDS_Packet_ID/APID" value="257" /> <!-- 0x101 -->
                         </ComparisonList>
                     </RestrictionCriteria>
                 </BaseContainer>
             </SequenceContainer>
 
-            
+            <!-- Power Telemetry -->
             <SequenceContainer name="Power">
                 <EntryList>
                     <ParameterRefEntry parameterRef="Battery_Level" />
@@ -342,13 +260,13 @@
                 <BaseContainer containerRef="CCSDSPacket">
                     <RestrictionCriteria>
                         <ComparisonList>
-                            <Comparison parameterRef="CCSDS_Packet_ID/APID" value="258" /> 
+                            <Comparison parameterRef="CCSDS_Packet_ID/APID" value="258" /> <!-- 0x102 -->
                         </ComparisonList>
                     </RestrictionCriteria>
                 </BaseContainer>
             </SequenceContainer>
 
-            
+            <!-- Payload Telemetry -->
             <SequenceContainer name="Payload">
                 <EntryList>
                     <ParameterRefEntry parameterRef="Imaging_Active" />
@@ -359,7 +277,7 @@
                 <BaseContainer containerRef="CCSDSPacket">
                     <RestrictionCriteria>
                         <ComparisonList>
-                            <Comparison parameterRef="CCSDS_Packet_ID/APID" value="259" /> 
+                            <Comparison parameterRef="CCSDS_Packet_ID/APID" value="259" /> <!-- 0x103 -->
                         </ComparisonList>
                     </RestrictionCriteria>
                 </BaseContainer>
@@ -369,13 +287,9 @@
 
     <CommandMetaData>
         <ArgumentTypeSet>
-			<BooleanArgumentType name="bool_arg_t">
-                <UnitSet />
-                <IntegerDataEncoding sizeInBits="8" />
-            </BooleanArgumentType>
             <FloatArgumentType name="quaternion_arg_t">
                 <UnitSet />
-                <FloatDataEncoding sizeInBits="32" />
+                <FloatDataEncoding sizeInBits="64" />
             </FloatArgumentType>
             <EnumeratedArgumentType name="adcs_mode_t">
                 <UnitSet />
@@ -386,9 +300,22 @@
                     <Enumeration label="CUSTOM" value="2" />
                 </EnumerationList>
             </EnumeratedArgumentType>
+            <FloatArgumentType name="wheel_speed_t">
+                <UnitSet>
+                    <Unit>rad/s</Unit>
+                </UnitSet>
+                <FloatDataEncoding sizeInBits="64" />
+            </FloatArgumentType>
+            <FloatArgumentType name="magnetic_dipole_t">
+                <UnitSet>
+                    <Unit>Am²</Unit>
+                </UnitSet>
+                <FloatDataEncoding sizeInBits="64" />
+            </FloatArgumentType>
         </ArgumentTypeSet>
 
         <MetaCommandSet>
+            <!-- ADCS Commands -->
             <MetaCommand name="adcs_set_target_attitude">
                 <ArgumentList>
                     <Argument name="qw" argumentTypeRef="quaternion_arg_t" />
@@ -396,15 +323,9 @@
                     <Argument name="qy" argumentTypeRef="quaternion_arg_t" />
                     <Argument name="qz" argumentTypeRef="quaternion_arg_t" />
                 </ArgumentList>
-                <CommandContainer name="adcs_set_target_attitude_container">
-                    <EntryList>
-                        <FixedValueEntry name="Subsystem" binaryValue="01" sizeInBits="8"/>
-                        <FixedValueEntry name="Command" binaryValue="01" sizeInBits="8"/>
-                        <ArgumentRefEntry argumentRef="qw"/>
-                        <ArgumentRefEntry argumentRef="qx"/>
-                        <ArgumentRefEntry argumentRef="qy"/>
-                        <ArgumentRefEntry argumentRef="qz"/>
-                    </EntryList>
+                <CommandContainer name="adcs_set_target_attitude">
+                    <FixedValue name="Subsystem" binaryValue="0x01" sizeInBits="8" />
+                    <FixedValue name="Command" binaryValue="0x01" sizeInBits="8" />
                 </CommandContainer>
             </MetaCommand>
 
@@ -412,43 +333,34 @@
                 <ArgumentList>
                     <Argument name="mode" argumentTypeRef="adcs_mode_t" />
                 </ArgumentList>
-                <CommandContainer name="adcs_set_mode_container">
-                    <EntryList>
-                        <FixedValueEntry name="Subsystem" binaryValue="01" sizeInBits="8"/>
-                        <FixedValueEntry name="Command" binaryValue="02" sizeInBits="8"/>
-                        <ArgumentRefEntry argumentRef="mode"/>
-                    </EntryList>
+                <CommandContainer name="adcs_set_mode">
+                    <FixedValue name="Subsystem" binaryValue="0x01" sizeInBits="8" />
+                    <FixedValue name="Command" binaryValue="0x02" sizeInBits="8" />
                 </CommandContainer>
             </MetaCommand>
 
             <MetaCommand name="adcs_reset_wheels">
-                <CommandContainer name="adcs_reset_wheels_container">
-                    <EntryList>
-                        <FixedValueEntry name="Subsystem" binaryValue="01" sizeInBits="8"/>
-                        <FixedValueEntry name="Command" binaryValue="03" sizeInBits="8"/>
-                    </EntryList>
+                <CommandContainer name="adcs_reset_wheels">
+                    <FixedValue name="Subsystem" binaryValue="0x01" sizeInBits="8" />
+                    <FixedValue name="Command" binaryValue="0x03" sizeInBits="8" />
                 </CommandContainer>
             </MetaCommand>
 
+            <!-- Payload Commands -->
             <MetaCommand name="payload_start_imaging">
                 <ArgumentList>
-                    <Argument name="state" argumentTypeRef="bool_arg_t" />
+                    <Argument name="state" argumentTypeRef="bool_t" />
                 </ArgumentList>
-                <CommandContainer name="payload_start_imaging_container">
-                    <EntryList>
-                        <FixedValueEntry name="Subsystem" binaryValue="04" sizeInBits="8"/>
-                        <FixedValueEntry name="Command" binaryValue="01" sizeInBits="8"/>
-                        <ArgumentRefEntry argumentRef="state"/>
-                    </EntryList>
+                <CommandContainer name="payload_start_imaging">
+                    <FixedValue name="Subsystem" binaryValue="0x04" sizeInBits="8" />
+                    <FixedValue name="Command" binaryValue="0x01" sizeInBits="8" />
                 </CommandContainer>
             </MetaCommand>
 
             <MetaCommand name="payload_take_image">
-                <CommandContainer name="payload_take_image_container">
-                    <EntryList>
-                        <FixedValueEntry name="Subsystem" binaryValue="04" sizeInBits="8"/>
-                        <FixedValueEntry name="Command" binaryValue="03" sizeInBits="8"/>
-                    </EntryList>
+                <CommandContainer name="payload_take_image">
+                    <FixedValue name="Subsystem" binaryValue="0x04" sizeInBits="8" />
+                    <FixedValue name="Command" binaryValue="0x03" sizeInBits="8" />
                 </CommandContainer>
             </MetaCommand>
         </MetaCommandSet>

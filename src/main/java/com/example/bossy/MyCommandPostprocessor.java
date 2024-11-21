@@ -1,4 +1,4 @@
-package com.example.myproject;
+package com.example.bossy;
 
 import org.yamcs.YConfiguration;
 import org.yamcs.cmdhistory.CommandHistoryPublisher;
