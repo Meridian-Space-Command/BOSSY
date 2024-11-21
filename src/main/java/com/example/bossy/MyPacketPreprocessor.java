@@ -54,9 +54,7 @@ public class MyPacketPreprocessor extends AbstractPacketPreprocessor {
 
         // Read time from secondary header (4 bytes CUC)
         long timeValue = buffer.getInt(6) & 0xFFFFFFFFL;  // Get unsigned int
-        eventProducer.sendInfo("TIME_DEBUG", 
-            "Raw time value from packet: " + timeValue);
-        
+
         // Convert CUC time (milliseconds since mission epoch) to YAMCS time
         long generationTime = TimeEncoding.fromUnixMillisec(missionEpoch + timeValue);
         packet.setGenerationTime(generationTime);
