@@ -196,7 +196,6 @@ class UniverseSimulator:
     @property
     def time(self) -> datetime:
         """Current simulation time"""
-        logger.info(f"Universe time requested: {self.current_time}")
         return self.current_time
 
     def set_speed_multiplier(self, multiplier: float) -> None:
