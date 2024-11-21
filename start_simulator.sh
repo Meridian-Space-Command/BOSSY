@@ -15,34 +15,24 @@ echo "Compiling project..."
 ./mvnw compile
 
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    # Create new tabs and store their IDs
-    YAMCS_TAB=$(osascript -e '
-        tell application "Terminal"
-            tell application "System Events" to keystroke "t" using command down
-            delay 0.5
-            do script "cd '"$PWD"' && export PYTHONPATH='"'$PYTHONPATH'"' && export MISSION_START_TIME='"'$MISSION_START_TIME'"' && echo '\''Starting YAMCS...'\''" in selected tab of the front window
-            return id of the front window
-        end tell')
-    
-    SIM_TAB=$(osascript -e '
-        tell application "Terminal"
-            tell application "System Events" to keystroke "t" using command down
-            delay 0.5
-            do script "cd '"$PWD"' && export PYTHONPATH='"'$PYTHONPATH'"' && export MISSION_START_TIME='"'$MISSION_START_TIME'"' && echo '\''Waiting for YAMCS to initialize...'\''" in selected tab of the front window
-            return id of the front window
-        end tell')
-    
-    # Start YAMCS in its tab
+    # Create new tabs with specific names and start processes
     osascript -e '
         tell application "Terminal"
-            do script "./mvnw yamcs:run" in tab 1 of window id '"$YAMCS_TAB"'
-        end tell'
-    
-    # Start simulator in its tab after delay
-    osascript -e '
-        tell application "Terminal"
+            -- Create YAMCS tab
+            tell application "System Events" to keystroke "t" using command down
+            delay 0.5
+            set custom title of selected tab of front window to "YAMCS_TAB"
+            do script "cd '"$PWD"' && export PYTHONPATH='"'$PYTHONPATH'"' && export MISSION_START_TIME='"'$MISSION_START_TIME'"' && echo '\''Starting YAMCS...'\''" in selected tab of front window
+            delay 1
+            do script "./mvnw yamcs:run" in selected tab of front window
+            
+            -- Create Simulator tab
+            tell application "System Events" to keystroke "t" using command down
+            delay 0.5
+            set custom title of selected tab of front window to "SIM_TAB"
+            do script "cd '"$PWD"' && export PYTHONPATH='"'$PYTHONPATH'"' && export MISSION_START_TIME='"'$MISSION_START_TIME'"' && echo '\''Waiting for YAMCS to initialize...'\''" in selected tab of front window
             delay 10
-            do script "python3 simulator.py" in tab 1 of window id '"$SIM_TAB"'
+            do script "python3 simulator.py" in selected tab of front window
         end tell'
     
     # Wait for user input to stop
@@ -57,20 +47,6 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
     
     # Wait for processes to stop
     sleep 2
-    
-    # Close tabs using a different AppleScript approach
-    osascript -e '
-        tell application "Terminal"
-            set windowList to windows where id is '"$YAMCS_TAB"' or id is '"$SIM_TAB"'
-            repeat with currentWindow in windowList
-                repeat with currentTab in tabs of currentWindow
-                    tell currentTab
-                        set currentSettings to current settings
-                        write text "exit"
-                    end tell
-                end repeat
-            end repeat
-        end tell'
     
 else
     # For Linux/Unix systems
