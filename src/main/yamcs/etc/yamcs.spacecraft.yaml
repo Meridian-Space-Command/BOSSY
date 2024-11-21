@@ -31,12 +31,20 @@ services:
   - class: org.yamcs.plists.ParameterListService
   - class: org.yamcs.timeline.TimelineService
 
+timeService:
+  class: org.yamcs.time.SimulationTimeService
+  args:
+    timeEncoding:
+      useLocalGenerationTime: false
+      useSimulationTime: true
+
 dataLinks:
   - name: tm_in
     class: org.yamcs.tctm.UdpTmDataLink
     stream: tm_realtime
     port: 10015
     packetPreprocessorClassName: com.example.bossy.MyPacketPreprocessor
+    updateSimulationTime: true
 
   - name: tc_out
     class: org.yamcs.tctm.UdpTcDataLink

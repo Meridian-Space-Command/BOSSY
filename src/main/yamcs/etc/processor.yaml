@@ -9,17 +9,13 @@ realtime:
     - class: org.yamcs.parameter.LocalParameterManager
   config:
     subscribeAll: true
-    # Record all parameters
     recordInitialValues: true
     recordLocalValues: true
-    # Enable parameter and event alarms
     alarm:
       parameterCheck: true
       parameterServer: enabled
       eventServer: enabled
-    # Configure CCSDS processing
     tmProcessor:
-      # Our simulator uses strict CCSDS packet boundaries
       ignoreOutOfContainerEntries: false
 
 # Used to perform step-by-step archive replays

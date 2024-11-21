@@ -18,7 +18,14 @@ from dataclasses import dataclass
 from . import universe_config as cfg
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('spacecraft_simulator.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -189,6 +196,7 @@ class UniverseSimulator:
     @property
     def time(self) -> datetime:
         """Current simulation time"""
+        logger.info(f"Universe time requested: {self.current_time}")
         return self.current_time
 
     def set_speed_multiplier(self, multiplier: float) -> None:

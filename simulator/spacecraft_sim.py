@@ -31,7 +31,14 @@ from . import universe_config as uni_cfg
 from . import universe_sim as universe
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('spacecraft_simulator.log'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -246,6 +253,9 @@ class Communications(SubsystemBase):
         
     def send_telemetry_packet(self, apid: int, data: bytes) -> None:
         """Send CCSDS Space Packet"""
+        # Debug the incoming data
+        logger.debug(f"First 4 bytes of packet data: {list(data[:4])}")
+        
         # Construct CCSDS primary header
         version = 0
         type_flag = 0  # Telemetry
@@ -437,12 +447,14 @@ class SpacecraftSimulator:
 
     def send_event(self, severity: EventSeverity, subsystem: str, message: str) -> None:
         """Send event packet to YAMCS"""
-        event_time = self.state.time.timestamp()
+        # Use simulation time instead of current time
+        event_time = int(self.state.time.timestamp())  # Get Unix timestamp from simulation time
+        
         event_data = struct.pack(
             '>HHQIB255s',
             0xE000,  # Special APID for events (0xE000)
             self.event_sequence,
-            int(event_time),
+            event_time,
             severity.value,
             len(message),
             message.encode('utf-8')
@@ -483,6 +495,11 @@ class SpacecraftSimulator:
         while self.running:
             loop_start = datetime.now()
             
+            # Step the universe simulation forward
+            self.universe.step()
+            # Update spacecraft time
+            self.state.time = self.universe.time
+            
             # Get environment state
             self.environment = self.universe.get_environment_state(
                 self.state.position,     # x, y, z
@@ -518,16 +535,29 @@ class SpacecraftSimulator:
     
     def _send_housekeeping(self) -> None:
         """Send housekeeping telemetry packet"""
-        # Main housekeeping packet (APID = base)
-        hk_data = struct.pack(
+        # Calculate time delta
+        time_delta = (self.state.time - self.comms.epoch).total_seconds() * 1000
+        time_ms = int(time_delta)
+        
+        # Add timestamp to data
+        time_bytes = struct.pack('>I', time_ms)  # 4-byte unsigned int
+        
+        # Pack the rest of the data
+        state_data = struct.pack(
             '>3d3d4d3dff',
-            *self.state.position,         # x, y, z       
-            *self.state.velocity,         # vx, vy, vz
-            *self.state.attitude,         # q0, qx, qy, qz
+            *self.state.position,       # x, y, z       
+            *self.state.velocity,       # vx, vy, vz
+            *self.state.attitude,       # q0, qx, qy, qz
             *self.state.angular_velocity, # wx, wy, wz
-            self.state.power_level,       # battery charge level
-            self.state.temperature        # average temperature (K) 
+            self.state.power_level,     # battery charge level
+            self.state.temperature      # average temperature (K) 
         )
+        
+        # Combine time and state data
+        hk_data = time_bytes + state_data
+        
+        logger.debug(f"Packet time bytes: {list(time_bytes)}")  # Debug the actual bytes
+        
         self.comms.send_telemetry_packet(
             sc_cfg.CCSDS_CONFIG['apid_base'],
             hk_data

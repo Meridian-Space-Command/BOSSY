@@ -30,7 +30,7 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
             delay 0.5
             set custom title of selected tab of front window to "SIM_TAB"
             do script "cd '"$PWD"' && export PYTHONPATH='"'$PYTHONPATH'"' && export MISSION_START_TIME='"'$MISSION_START_TIME'"' && echo '\''Waiting for YAMCS to initialize...'\''" in selected tab of front window
-            delay 10
+            delay 1
             do script "python3 simulator.py" in selected tab of front window
         end tell'
     
@@ -54,7 +54,7 @@ else
         gnome-terminal --tab -- bash -c "cd '$PWD' && export PYTHONPATH='$PYTHONPATH' && export MISSION_START_TIME='$MISSION_START_TIME' && echo 'Starting YAMCS...' && ./mvnw yamcs:run; exec bash"
         
         # Start simulator in new tab
-        gnome-terminal --tab -- bash -c "cd '$PWD' && export PYTHONPATH='$PYTHONPATH' && export MISSION_START_TIME='$MISSION_START_TIME' && echo 'Waiting for YAMCS...' && sleep 10 && echo 'Starting simulator...' && python3 simulator.py; exec bash"
+        gnome-terminal --tab -- bash -c "cd '$PWD' && export PYTHONPATH='$PYTHONPATH' && export MISSION_START_TIME='$MISSION_START_TIME' && echo 'Waiting for YAMCS...' && sleep 1 && echo 'Starting simulator...' && python3 simulator.py; exec bash"
     else
         echo "No suitable terminal emulator found. Please install gnome-terminal."
         exit 1
