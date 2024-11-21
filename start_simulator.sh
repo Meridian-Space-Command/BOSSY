@@ -6,9 +6,8 @@ export PYTHONPATH="${PYTHONPATH:-.}:$PWD"
 # Export mission start time for YAMCS
 export MISSION_START_TIME=$(python3 -c "from simulator.spacecraft_config import MISSION_START_TIME; print(MISSION_START_TIME.strftime('%Y-%m-%dT%H:%M:%SZ'))")
 
-# Clean up any existing .rdb files at start
-echo "Cleaning up previous simulation data..."
-rm -rf ./target/yamcs-data
+# Clean up the project (deletes target directory and all yamcs data)
+./mvnw clean
 
 # Compile the project
 echo "Compiling project..."
@@ -35,10 +34,10 @@ if [[ "$OSTYPE" == "darwin"* ]]; then
             do script "python3 simulator.py" in selected tab of front window
         end tell'
     
-    # Wait for user input to stop
+    # Wait for user input in original window
     echo "Press Enter to stop the simulation..."
     read
-
+    
     # Kill processes more aggressively
     echo "Stopping all processes..."
     pkill -9 -f "yamcs:run"
@@ -73,4 +72,5 @@ else
     
     # Wait for processes to stop
     sleep 2
+
 fi
