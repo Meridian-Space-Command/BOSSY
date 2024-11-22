@@ -164,6 +164,23 @@
                 <UnitSet />
                 <IntegerDataEncoding sizeInBits="8" />
             </IntegerParameterType>
+            <EnumeratedParameterType name="adcs_mode_type">
+                <UnitSet />
+                <IntegerDataEncoding sizeInBits="8" />
+                <EnumerationList>
+                    <Enumeration label="NADIR" value="0" />
+                    <Enumeration label="SUNPOINTING" value="1" />
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="pointing_status_type">
+                <UnitSet />
+                <IntegerDataEncoding sizeInBits="8" />
+                <EnumerationList>
+                    <Enumeration label="SLEWING" value="0" />
+                    <Enumeration label="POINTING" value="1" />
+                    <Enumeration label="UNKNOWN" value="2" />
+                </EnumerationList>
+            </EnumeratedParameterType>
         </ParameterTypeSet>
 
         <ParameterSet>
@@ -253,6 +270,12 @@
             <Parameter name="Command" parameterTypeRef="command_id_t">
                 <ParameterProperties dataSource="command"/>
             </Parameter>
+            <Parameter name="ADCS_Mode" parameterTypeRef="adcs_mode_type">
+                <ParameterProperties dataSource="telemetered" />
+            </Parameter>
+            <Parameter name="Pointing_Status" parameterTypeRef="pointing_status_type">
+                <ParameterProperties dataSource="telemetered" />
+            </Parameter>
         </ParameterSet>
 
         <ContainerSet>
@@ -300,6 +323,8 @@
                     <ParameterRefEntry parameterRef="Angular_Velocity_Z" />
                     <ParameterRefEntry parameterRef="Battery_Level" />
                     <ParameterRefEntry parameterRef="Temperature" />
+                    <ParameterRefEntry parameterRef="ADCS_Mode" />
+                    <ParameterRefEntry parameterRef="Pointing_Status" />
                 </EntryList>
                 <BaseContainer containerRef="CCSDSPacket">
                     <RestrictionCriteria>
@@ -383,7 +408,6 @@
                 <EnumerationList>
                     <Enumeration label="NADIR" value="0" />
                     <Enumeration label="SUNPOINTING" value="1" />
-                    <Enumeration label="CUSTOM" value="2" />
                 </EnumerationList>
             </EnumeratedArgumentType>
         </ArgumentTypeSet>

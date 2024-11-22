@@ -30,15 +30,12 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SpaceEnvironment:
-    """Represents the space environment at a specific point and time"""
-    position: np.ndarray          # [x, y, z] in ECI frame (m)
-    velocity: np.ndarray          # [vx, vy, vz] in ECI frame (m/s)
-    magnetic_field: np.ndarray    # [Bx, By, Bz] in ECI frame (Tesla)
-    solar_flux: float            # W/m²
-    atmospheric_density: float    # kg/m³
-    is_eclipsed: bool            # True if in Earth's shadow
-    temperature: float           # K
-    radiation_flux: float        # particles/cm²/s
+    """Space environment state at a given position and time"""
+    magnetic_field: np.ndarray    # [Bx, By, Bz] in ECI (Tesla)
+    sun_direction: np.ndarray     # Unit vector pointing to Sun in ECI
+    solar_flux: float            # Solar flux at spacecraft (W/m²)
+    is_eclipsed: bool           # True if spacecraft is in Earth's shadow
+    temperature: float          # Local space temperature (K)
 
 class UniverseSimulator:
     """Main universe simulation class"""
@@ -145,8 +142,9 @@ class UniverseSimulator:
             if r < 1e-10:
                 return True
             
-            pos_dir = position / r
+            # Calculate sun direction
             sun_dir = self.sun_position / np.linalg.norm(self.sun_position)
+            pos_dir = position / r
             angle = np.arccos(np.clip(np.dot(pos_dir, sun_dir), -1.0, 1.0))
             
             # Check if spacecraft is in Earth's shadow
@@ -157,35 +155,25 @@ class UniverseSimulator:
             return False
 
     def get_environment_state(self, position: np.ndarray, velocity: np.ndarray) -> SpaceEnvironment:
-        """Get complete space environment state for given position and velocity"""
-        # Calculate altitude
-        altitude = np.linalg.norm(position) - cfg.EARTH['radius'] * 1000  # in meters
+        """Get environment state at given position"""
+        # Calculate sun direction
+        sun_direction = self.sun_position / np.linalg.norm(self.sun_position)
         
-        # Calculate all environmental parameters
-        mag_field = self._calculate_magnetic_field(position)
-        density = self._calculate_atmospheric_density(position / 1000)  # km to m
-        eclipsed = self._check_eclipse(position)
+        # Calculate magnetic field
+        B = self._calculate_magnetic_field(position)
         
-        # Solar flux calculation
-        base_flux = cfg.SUN['radiation_pressure']['solar_constant']
-        solar_flux = 0.0 if eclipsed else base_flux * (cfg.SUN['mean_earth_distance'] / 
-                                                      np.linalg.norm(self.sun_position))**2
+        # Calculate eclipse state
+        is_eclipsed = self._check_eclipse(position)
         
-        # Simple temperature model
-        temperature = 250 if eclipsed else 300  # Simplified model
-        
-        # Basic radiation flux model
-        radiation_flux = cfg.SPACE_ENVIRONMENT['cosmic_radiation']['galactic_flux']
+        # Calculate solar flux
+        solar_flux = 0.0 if is_eclipsed else 1367.0  # W/m²
         
         return SpaceEnvironment(
-            position=position,
-            velocity=velocity,
-            magnetic_field=mag_field,
+            magnetic_field=B,
+            sun_direction=sun_direction,
             solar_flux=solar_flux,
-            atmospheric_density=density,
-            is_eclipsed=eclipsed,
-            temperature=temperature,
-            radiation_flux=radiation_flux
+            is_eclipsed=is_eclipsed,
+            temperature=250.0
         )
 
     def step(self) -> None:

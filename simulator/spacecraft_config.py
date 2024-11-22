@@ -47,36 +47,65 @@ POWER_CONFIG = {
         'efficiency': 0.29,          # 29% efficient cells
         'area_per_panel': 0.03,      # m²
         'num_panels': 4,             # 4 deployable panels
+        'area_per_panel': 0.3,  # m²
+        'efficiency': 0.3,      # 30% efficiency
     },
     'battery': {
         'capacity': 40.0,            # Wh
         'initial_charge': 1.0,       # 100%
         'voltage': 7.4,              # V
+        'capacity': 50.0,       # Wh
+        'initial_charge': 1.0,  # 100%
     },
     'power_consumption': {
+        'base': 5.0,           # Base power consumption in W
         'obc': 0.5,                  # W
         'adcs': 1.5,                 # W
         'comms': 2.0,                # W (average)
-        'payload': 4.0,              # W (when active)
+        'payload': 4.0,              # W (when active, 1W when inactive)
     }
 }
 
 # ADCS Configuration
 ADCS_CONFIG = {
-    'magnetorquers': {
-        'max_dipole': 0.2,           # Am²
-        'num_rods': 3,               # one per axis
+    # Control parameters
+    'max_slew_rate': 0.05,      # rad/s (~3 deg/s max slew rate)
+    'control_gains': {
+        'proportional': 0.005,   # Proportional gain
+        'derivative': 0.2        # Derivative gain
     },
+    
+    # Pointing requirements
+    'pointing_tolerance': 0.017,  # rad (~1 degree)
+    'rate_tolerance': 0.001,     # rad/s
+    'settling_time': 5.0,        # seconds required to declare pointing
+    
+    # Reaction wheels
     'reaction_wheels': {
-        'max_torque': 0.001,         # Nm
-        'max_momentum': 0.050,        # Nms
-        'num_wheels': 3,             # one per axis
+        'max_speed': 500.0,      # rad/s
+        'moment': 1e-4,          # Nms (wheel momentum)
+        'num_wheels': 3          # Number of reaction wheels
     },
+    
+    # Magnetorquers
+    'magnetorquers': {
+        'max_dipole': 0.1,       # Am² (max dipole moment)
+        'resolution': 1000       # Number of discrete dipole levels
+    },
+    
+    # Sensors
     'sensors': {
-        'magnetometer': True,
-        'sun_sensors': True,
-        'star_tracker': True,
-        'gyroscope': True,
+        'magnetometer': {
+            'noise': 1e-7,       # Tesla (1-sigma noise)
+            'sample_rate': 1.0   # Hz
+        }
+    },
+    
+    # Spacecraft properties
+    'inertia': {                 # kg.m²
+        'Ixx': 0.005,           # Moment of inertia around x-axis
+        'Iyy': 0.005,           # Moment of inertia around y-axis
+        'Izz': 0.001            # Moment of inertia around z-axis
     }
 }
 

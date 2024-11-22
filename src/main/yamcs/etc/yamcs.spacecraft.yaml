@@ -37,6 +37,7 @@ timeService:
     timeEncoding:
       useLocalGenerationTime: false
       useSimulationTime: true
+  time: "2025-01-01T00:00:00Z"
 
 dataLinks:
   - name: tm_in
