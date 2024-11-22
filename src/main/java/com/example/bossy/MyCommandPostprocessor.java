@@ -13,7 +13,9 @@ import java.nio.ByteBuffer;
 public class MyCommandPostprocessor implements CommandPostprocessor {
 
     private static final Logger log = LoggerFactory.getLogger(MyCommandPostprocessor.class);
+    @SuppressWarnings("unused")
     private CcsdsSeqCountFiller seqFiller = new CcsdsSeqCountFiller();
+    @SuppressWarnings("unused")
     private CommandHistoryPublisher commandHistory;
     @SuppressWarnings("unused")
     private final String yamcsInstance;
