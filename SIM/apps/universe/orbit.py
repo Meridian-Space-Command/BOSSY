@@ -44,36 +44,46 @@ class OrbitPropagator:
         """Calculate orbital state at given time"""
         dt = (time - self.mission_start).total_seconds()
 
-        # Calculate position in orbital plane
-        # Calculate mean motion
-        n = 2 * np.pi / self.period
+        # Calculate mean motion (n)
+        n = np.sqrt(self.earth.gravitational_parameter() / self.a**3)  # More accurate than 2π/period
         
         # Convert initial true anomaly to initial mean anomaly
-        # First get eccentric anomaly from true anomaly
         E0 = 2 * np.arctan(np.sqrt((1 - self.e)/(1 + self.e)) * np.tan(self.true_anomaly/2))
-        # Then get initial mean anomaly
         M0 = E0 - self.e * np.sin(E0)
         
-        # Calculate current mean anomaly including initial position
+        # Calculate current mean anomaly
         M = (M0 + n * dt) % (2 * np.pi)
         
-        # Solve Kepler's equation (simple iteration)
-        E = M
+        # Solve Kepler's equation using Newton-Raphson method (more accurate)
+        E = M  # Initial guess
         for _ in range(10):
-            E = M + self.e * np.sin(E)
+            f = E - self.e * np.sin(E) - M
+            f_prime = 1 - self.e * np.cos(E)
+            E_next = E - f/f_prime
+            if abs(E_next - E) < 1e-8:  # Convergence check
+                E = E_next
+                break
+            E = E_next
         
-        # Calculate true anomaly
-        nu = 2 * np.arctan(np.sqrt((1 + self.e)/(1 - self.e)) * np.tan(E/2))
+        # Calculate true anomaly using a more numerically stable formula
+        nu = 2 * np.arctan2(
+            np.sqrt(1 + self.e) * np.sin(E/2),
+            np.sqrt(1 - self.e) * np.cos(E/2)
+        )
         
-        # Calculate position in orbital plane
+        # Calculate radius vector magnitude
         r = self.a * (1 - self.e * np.cos(E))
+        
+        # Calculate position in orbital plane (perifocal coordinates)
         x = r * np.cos(nu)
         y = r * np.sin(nu)
+        pos_orbital = np.array([x, y, 0])
         
-        # Rotation matrices for orbital plane to ECI
-        R_w = np.array([
-            [np.cos(self.arg_p), -np.sin(self.arg_p), 0],
-            [np.sin(self.arg_p), np.cos(self.arg_p), 0],
+        # Create rotation matrix from perifocal to ECI
+        # Note: Order is important! RAAN -> inclination -> arg of perigee
+        R_W = np.array([
+            [np.cos(self.raan), -np.sin(self.raan), 0],
+            [np.sin(self.raan), np.cos(self.raan), 0],
             [0, 0, 1]
         ])
         
@@ -83,27 +93,33 @@ class OrbitPropagator:
             [0, np.sin(self.i), np.cos(self.i)]
         ])
         
-        R_W = np.array([
-            [np.cos(self.raan), -np.sin(self.raan), 0],
-            [np.sin(self.raan), np.cos(self.raan), 0],
+        R_w = np.array([
+            [np.cos(self.arg_p), -np.sin(self.arg_p), 0],
+            [np.sin(self.arg_p), np.cos(self.arg_p), 0],
             [0, 0, 1]
         ])
         
-        # Transform to ECI
-        pos_orbital = np.array([x, y, 0])
-        pos_eci = R_W @ R_i @ R_w @ pos_orbital
+        # Transform to ECI (apply rotations in correct order)
+        R_pef_to_eci = R_W @ R_i @ R_w
+        pos_eci = R_pef_to_eci @ pos_orbital
         
         # Calculate velocity in orbital plane
-        p = self.a * (1 - self.e**2)
-        vel_magnitude = np.sqrt(self.earth.gravitational_parameter() * (2/r - 1/self.a))
-        v_x = -np.sqrt(self.earth.gravitational_parameter()/p) * np.sin(nu)
-        v_y = np.sqrt(self.earth.gravitational_parameter()/p) * (self.e + np.cos(nu))
+        p = self.a * (1 - self.e**2)  # Semi-latus rectum
+        mu = self.earth.gravitational_parameter()
+        
+        # Velocity components in perifocal frame
+        v_x = -np.sqrt(mu/p) * np.sin(nu)
+        v_y = np.sqrt(mu/p) * (self.e + np.cos(nu))
         vel_orbital = np.array([v_x, v_y, 0])
         
-        # Transform velocity to ECI
-        vel_eci = R_W @ R_i @ R_w @ vel_orbital
+        # Transform velocity to ECI using same rotation matrix
+        vel_eci = R_pef_to_eci @ vel_orbital
         
-        # Calculate lat, lon, alt
+        # Apply J2 perturbation before calculating lat/lon
+        j2_accel = self._apply_j2_perturbation(pos_eci, dt)
+        pos_eci += 0.5 * j2_accel * dt**2  # Simple numerical integration
+        
+        # Calculate lat, lon, alt from perturbed position
         r_mag = np.sqrt(np.sum(pos_eci**2))
         lat = np.arcsin(pos_eci[2] / r_mag)
         lon = np.arctan2(pos_eci[1], pos_eci[0])
@@ -113,12 +129,6 @@ class OrbitPropagator:
         sun_pos = self.sun.get_position_at_time(time)
         in_eclipse = self._check_eclipse(pos_eci, sun_pos)
         
-        # Apply J2 perturbation
-        j2_accel = self._apply_j2_perturbation(pos_eci, dt)
-        
-        # Simple numerical integration of J2 effect
-        pos_eci += 0.5 * j2_accel * dt**2
-        
         # Create the state dictionary
         state = {
             'position': pos_eci / 1000,  # m to km
@@ -127,14 +137,15 @@ class OrbitPropagator:
             'lon': np.degrees(lon),
             'alt': alt / 1000,  # m to km
             'eclipse': in_eclipse,
-            'time': time
+            'time': time,
+            'true_anomaly': np.degrees(nu) % 360  # Added for debugging
         }
-
-        # Now check altitude after we have calculated it
+        
+        # Check for reentry
         if state['alt'] < 50 + np.random.uniform(-7, 7):
             self.logger.debug("Altitude is less than 50km - stopping simulation")
             raise SimulationEndedException("Spacecraft LOST. This is the end my friend.")
-
+        
         return state
         
     def propagate(self, current_time):
