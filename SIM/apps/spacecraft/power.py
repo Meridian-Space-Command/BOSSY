@@ -92,6 +92,28 @@ class PowerModule:
         except struct.error as e:
             self.logger.error(f"Error unpacking POWER command {command_id}: {e}")
 
+    def process_ats_command(self, command_id, command_data):
+        """Process POWER commands (Command_ID range 20-29)"""
+        self.logger.info(f"Processing POWER command {command_id}: {command_data}")
+        
+        if command_id == 20:    # POWER_SET_STATE
+            state = int(command_data)
+            self.logger.info(f"Setting POWER state to: {state}")
+            self.state = state
+            
+        elif command_id == 21:   # POWER_SET_HEATER
+            heater = int(command_data)
+            self.logger.info(f"Setting POWER heater to: {heater}")
+            self.heater_state = heater
+            
+        elif command_id == 22:   # POWER_SET_HEATER_SETPOINT
+            setpoint = float(command_data)
+            self.logger.info(f"Setting POWER heater setpoint to: {setpoint}°C")
+            self.heater_setpoint = setpoint
+            
+        else:
+            self.logger.warning(f"Unknown POWER command ID: {command_id}")
+
     def update(self, current_time, adcs_module):
         """Update power state based on current conditions"""
         try:

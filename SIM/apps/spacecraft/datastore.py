@@ -92,9 +92,13 @@ class DatastoreModule:
                         self.logger.error(f"Error removing file {file}: {e}")
                 self._update_storage_stats()
                 
-            elif command_id == 64:   # DATASTORE_TRANSFER_FILE
+            elif command_id == 64:   # DATASTORE_DOWNLOAD_FILE
                 filename = command_data.decode('utf-8').strip('\x00')
-                self._transfer_file(filename)
+                self._download_file(filename)
+            
+            elif command_id == 65:   # DATASTORE_UPLOAD_FILE
+                filename = command_data.decode('utf-8').strip('\x00')
+                self._upload_file(filename)
                 
             else:
                 self.logger.warning(f"Unknown DATASTORE command ID: {command_id}")
@@ -102,17 +106,60 @@ class DatastoreModule:
         except struct.error as e:
             self.logger.error(f"Error unpacking DATASTORE command {command_id}: {e}")
 
-    def _transfer_file(self, filename):
-        """Handle file transfer process"""
-        self.logger.info(f"Initiating transfer of file: {filename}")
+    def process_ats_command(self, command_id, command_data):
+        """Process DATASTORE commands (Command_ID range 60-69)"""
+        self.logger.info(f"Processing DATASTORE command {command_id}: {command_data}")
+        
+        if command_id == 60:    # DATASTORE_SET_STATE
+            state = int(command_data)
+            self.logger.info(f"Setting DATASTORE state to: {state}")
+            self.state = state
+            
+        elif command_id == 61:   # DATASTORE_SET_HEATER
+            heater = int(command_data)
+            self.logger.info(f"Setting DATASTORE heater to: {heater}")
+            self.heater_state = heater
+            
+        elif command_id == 62:   # DATASTORE_SET_HEATER_SETPOINT
+            setpoint = float(command_data)  
+            self.logger.info(f"Setting DATASTORE heater setpoint to: {setpoint}°C")
+            self.heater_setpoint = setpoint
+            
+        elif command_id == 63:   # DATASTORE_CLEAR_DATASTORE
+            self.logger.info("Clearing all files from DATASTORE")
+            for file in os.listdir(self.storage_path):
+                try:
+                    os.remove(os.path.join(self.storage_path, file))
+                except Exception as e:
+                    self.logger.error(f"Error removing file {file}: {e}")
+            self._update_storage_stats()
+            
+        elif command_id == 64:   # DATASTORE_DOWNLOAD_FILE
+            filename = command_data
+            self._download_file(filename)
+
+        elif command_id == 65:   # DATASTORE_UPLOAD_FILE
+            filename = command_data
+            self._upload_file(filename)
+            
+        else:
+            self.logger.warning(f"Unknown DATASTORE command ID: {command_id}")
+
+    def _download_file(self, filename):
+        """Handle file download process"""
+        self.logger.info(f"Initiating download of file: {filename}")
         filepath = os.path.join(self.storage_path, filename)
         
         if not os.path.exists(filepath):
             self.logger.warning(f"File not found: {filename}")
             return
+        
+        if self.mode != 0:
+            self.logger.warning("DATASTORE is busy, cannot download file")
+            return
             
         try:
-            self.mode = 1  # TRANSFERRING
+            self.mode = 1  # DOWNLOADING
             file_size = os.path.getsize(filepath)
             bitrate = SPACECRAFT_CONFIG['spacecraft']['initial_state']['comms']['downlink_bitrate']
             total_duration = (file_size * 8) / bitrate
@@ -125,8 +172,41 @@ class DatastoreModule:
                 
             # Copy file to download directory
             download_path = os.path.join('../../', SIM_CONFIG['download_directory'])
-            os.makedirs(download_path, exist_ok=True)
             shutil.copy(filepath, os.path.join(download_path, filename))
+            
+        except Exception as e:
+            self.logger.error(f"Error transferring file: {e}")
+        finally:
+            self.mode = 0  # IDLE
+            self.transfer_progress = 0
+
+    def _upload_file(self, filename):
+        """Handle file upload process"""
+        self.logger.info(f"Initiating upload of file: {filename}")
+        filepath = os.path.join('../../', SIM_CONFIG['upload_directory'], filename)
+        
+        if not os.path.exists(filepath):
+            self.logger.warning(f"File not found: {filename}")
+            return
+        
+        if self.mode != 0:
+            self.logger.warning("DATASTORE is busy, cannot upload file")
+            return
+            
+        try:
+            self.mode = 2  # UPLOADING
+            file_size = os.path.getsize(filepath)
+            bitrate = SPACECRAFT_CONFIG['spacecraft']['initial_state']['comms']['uplink_bitrate']
+            total_duration = (file_size * 8) / bitrate
+            
+            # Simulate transfer
+            for progress in range(0, 101, 1):
+                self.transfer_progress = progress
+                self.logger.info(f"Transfer progress: {progress}%")
+                time.sleep(total_duration / 100)
+                
+            # Copy file to storage directory
+            shutil.copy(filepath, os.path.join(self.storage_path, filename))
             
         except Exception as e:
             self.logger.error(f"Error transferring file: {e}")

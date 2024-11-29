@@ -93,6 +93,32 @@ class CommsModule:
                 
         except struct.error as e:
             self.logger.error(f"Error unpacking COMMS command {command_id}: {e}")
+
+    def process_ats_command(self, command_id, command_data):
+        """Process COMMS commands (Command_ID range 40-49)"""
+        self.logger.info(f"Processing COMMS command {command_id}: {command_data}")    
+        if command_id == 40:    # COMMS_SET_STATE
+            state = int(command_data)
+            self.logger.info(f"Setting COMMS state to: {state}")
+            self.state = state
+            
+        elif command_id == 41:   # COMMS_SET_HEATER
+            heater = int(command_data)
+            self.logger.info(f"Setting COMMS heater to: {heater}")
+            self.heater_state = heater
+            
+        elif command_id == 42:   # COMMS_SET_HEATER_SETPOINT
+            setpoint = float(command_data)  
+            self.logger.info(f"Setting COMMS heater setpoint to: {setpoint}°C")
+            self.heater_setpoint = setpoint
+            
+        elif command_id == 43:   # COMMS_SET_MODE
+            mode = int(command_data)
+            self.logger.info(f"Setting COMMS mode to: {mode}")
+            self.mode = mode
+            
+        else:
+            self.logger.warning(f"Unknown COMMS command ID: {command_id}")
             
     def start(self):
         """Start the communications module"""

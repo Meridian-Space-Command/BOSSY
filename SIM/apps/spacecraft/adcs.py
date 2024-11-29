@@ -206,6 +206,51 @@ class ADCSModule:
         except struct.error as e:
             self.logger.error(f"Error unpacking ADCS command {command_id}: {e}")
 
+    def process_ats_command(self, command_id, command_data):
+        """Process ADCS commands (Command_ID range 30-39)"""
+        self.logger.info(f"Processing ADCS command {command_id}: {command_data}")
+        
+        if command_id == 30:    # ADCS_SET_STATE
+            state = int(command_data)
+            self.logger.info(f"Setting ADCS state to: {state}")
+            self.state = state
+            
+        elif command_id == 31:   # ADCS_SET_HEATER
+            heater = int(command_data)
+            self.logger.info(f"Setting ADCS heater to: {heater}")
+            self.heater_state = heater
+            
+        elif command_id == 32:   # ADCS_SET_HEATER_SETPOINT
+            setpoint = float(command_data)
+            self.logger.info(f"Setting ADCS heater setpoint to: {setpoint}°C")
+            self.heater_setpoint = setpoint
+            
+        elif command_id == 33:  # Set ADCS mode
+            new_mode = int(command_data)
+            self.logger.info(f"Received request to change to mode: {new_mode}")
+            
+            # Validate mode
+            if new_mode > 5:
+                self.logger.error(f"Invalid ADCS mode: {new_mode}")
+                return
+            
+            # Update the mode directly instead of using requested_mode
+            self.mode = new_mode  # Add this line
+            self.status = 1  # SLEWING
+            self.pointing_start_time = None
+            self.logger.info(f"Beginning slew to requested mode {new_mode}")
+
+        elif command_id == 34:  # ADCS_DEORBIT_BURN
+            self.logger.info("Initiating deorbit burn")
+            if self.mode == 5 and self.status == 2:
+                self._burn_initiated = True
+            else:
+                self.logger.error("Deorbit burn can only be initiated in ADCS mode = EOL and status = POINTING.")
+            
+        else:
+            self.logger.warning(f"Unknown ADCS command ID: {command_id}")
+                
+
     def _update_attitude(self, orbit_state):
         """Update spacecraft attitude based on current mode"""
         try:

@@ -642,6 +642,22 @@
 					<BaseContainer containerRef="CommandPacket"/>
 				</CommandContainer>
 			</MetaCommand>	
+			<MetaCommand name="OBC_START_ATS" shortDescription="Starts the ATS">
+				<BaseMetaCommand metaCommandRef="CommandPacket">
+					<ArgumentAssignmentList>
+						<ArgumentAssignment argumentName="Command_ID" argumentValue="15" />
+					</ArgumentAssignmentList>
+				</BaseMetaCommand>
+				<ArgumentList>
+					<Argument argumentTypeRef="filename" name="filename" shortDescription="Name of the ATS file to start" />
+				</ArgumentList>
+				<CommandContainer name="OBC_START_ATS">
+					<EntryList>
+						<ArgumentRefEntry argumentRef="filename" />
+					</EntryList>
+					<BaseContainer containerRef="CommandPacket"/>
+				</CommandContainer>
+			</MetaCommand>	
 
 			<!-- CDH Commands -->
 			<MetaCommand name="CDH_SET_STATE" shortDescription="Sets the CDH state">	
@@ -1012,22 +1028,38 @@
 					<BaseContainer containerRef="CommandPacket"/>
 				</CommandContainer>	
 			</MetaCommand>	
-			<MetaCommand name="DATASTORE_TRANSFER_FILE" shortDescription="Transfers a file from the DATASTORE">
+			<MetaCommand name="DATASTORE_DOWNLOAD_FILE" shortDescription="Downloads a file from the spacecraft's DATASTORE to the MCS">
 				<BaseMetaCommand metaCommandRef="CommandPacket">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Command_ID" argumentValue="64" />
 					</ArgumentAssignmentList>	
 				</BaseMetaCommand>		 
 				<ArgumentList>
-					<Argument argumentTypeRef="filename" name="filename" shortDescription="Name of file to transfer" />
+					<Argument argumentTypeRef="filename" name="filename" shortDescription="Name of file to download" />
 				</ArgumentList>	
-				<CommandContainer name="DATASTORE_TRANSFER_FILE">
+				<CommandContainer name="DATASTORE_DOWNLOAD_FILE">
 					<EntryList>
 						<ArgumentRefEntry argumentRef="filename" />
 					</EntryList>
 					<BaseContainer containerRef="CommandPacket" />
 				</CommandContainer>		
 			</MetaCommand>		
+			<MetaCommand name="DATASTORE_UPLOAD_FILE" shortDescription="Uploads a file from the MCS to the spacecraft's DATASTORE">
+				<BaseMetaCommand metaCommandRef="CommandPacket">
+					<ArgumentAssignmentList>
+						<ArgumentAssignment argumentName="Command_ID" argumentValue="65" />
+					</ArgumentAssignmentList>	
+				</BaseMetaCommand>		 
+				<ArgumentList>
+					<Argument argumentTypeRef="filename" name="filename" shortDescription="Name of file to upload" />
+				</ArgumentList>	
+				<CommandContainer name="DATASTORE_UPLOAD_FILE">
+					<EntryList>
+						<ArgumentRefEntry argumentRef="filename" />
+					</EntryList>
+					<BaseContainer containerRef="CommandPacket" />
+				</CommandContainer>		
+			</MetaCommand>	
 		</MetaCommandSet>
 	</CommandMetaData>
 </SpaceSystem>

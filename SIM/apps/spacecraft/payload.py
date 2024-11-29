@@ -107,7 +107,41 @@ class PayloadModule:
         except struct.error as e:
             self.logger.error(f"Error unpacking PAYLOAD command {command_id}: {e}")
 
-
+    def process_ats_command(self, command_id, command_data):
+        """Process PAYLOAD commands (Command_ID range 50-59)"""
+        self.logger.info(f"Processing PAYLOAD command {command_id}: {command_data}")
+        
+        if command_id == 50:    # PAYLOAD_SET_STATE
+            state = int(command_data)
+            self.logger.info(f"Setting PAYLOAD state to: {state}")
+            self.state = state
+            
+        elif command_id == 51:   # PAYLOAD_SET_HEATER
+            heater = int(command_data)
+            self.logger.info(f"Setting PAYLOAD heater to: {heater}")
+            self.heater_state = heater
+            
+        elif command_id == 52:   # PAYLOAD_SET_HEATER_SETPOINT
+            setpoint = float(command_data)
+            self.logger.info(f"Setting PAYLOAD heater setpoint to: {setpoint}°C")
+            self.heater_setpoint = setpoint
+            
+        elif command_id == 53:   # PAYLOAD_IMAGE_CAPTURE
+            met_sec = int(command_data)
+            epoch = self.mission_epoch
+            current_time = self.current_time
+            lat = self.latitude
+            lon = self.longitude
+            alt = self.altitude
+            res = self.resolution
+            swath = self.swath
+            self.logger.info(f"Starting image capture at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, Swath: {swath}")
+            if self.state == 2:  # Only if powered ON
+                self._capture_image(met_sec, epoch, current_time, lat, lon, alt, res, swath)
+            
+        else:
+            self.logger.warning(f"Unknown PAYLOAD command ID: {command_id}")
+                
     def _capture_image(self, met_sec, epoch, current_time, lat, lon, alt, res, swath):
         """Capture an image at the specified MET seconds"""
         self.logger.debug(f"Current time: {current_time}")

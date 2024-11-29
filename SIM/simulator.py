@@ -46,7 +46,7 @@ class Simulator:
             comms=self.comms,
             payload=self.payload
         )
-        
+
         self.datastore = DatastoreModule()
         self.obc = OBCModule()
         self.cdh = CDHModule()
@@ -61,6 +61,8 @@ class Simulator:
             'payload': self.payload,
             'datastore': self.datastore
         }
+
+        self.obc.set_subsystems(self.subsystems)
         
         # Set up COMMS with CDH reference and subsystems for command routing
         self.comms.set_cdh(self.cdh)
@@ -121,6 +123,7 @@ class Simulator:
                 try:
                     # Update subsystems in order
                     self.adcs.update(self.current_time)
+                    self.obc.update(self.current_time)
                     
                     # Calculate total power draw and update power subsystem
                     total_power = self.calculate_total_power_draw()

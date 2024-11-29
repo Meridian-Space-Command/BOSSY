@@ -11,6 +11,7 @@ SIM_CONFIG = {
     'time_step': 1.0,                                     # Simulation time step in seconds
     'time_factor': 1.0,                                    # Time factor (e.g. 1.0 = real time, 2.0 = 2x speed, etc.)
     'download_directory': './BOSSY/MCS/download/',
+    'upload_directory': './BOSSY/MCS/upload/',
     'google_maps_api_key': 'AIzaSyDL__brVoZ4VY72_ZnRl5MhLnWLpuP4bsA'
 }
 
@@ -101,9 +102,9 @@ SPACECRAFT_CONFIG = {
                 'temperature': 20,    # int8_degC: Operating temperature in degrees Celsius
                 'heater_setpoint': 25,# int8_degC: Temperature setpoint for heater control
                 'power_draw': 0.4,    # float_W: Power consumption in Watts
-                'storage_path': "./apps/spacecraft/datastore/", # Path to the datastore directory, relative to the BOSSY/SIM/ directory
+                'storage_path': "./apps/spacecraft/storage/", # Path to the storage directory, relative to the BOSSY/SIM/ directory
                 'storage_total': 1024 * 1024 * 1024,  # uint32: Total storage in bytes (1GB)
-                'mode': 0           # DatastoreMode_Type (uint8): 0=IDLE, 1=TRANSFERING
+                'mode': 0           # DatastoreMode_Type (uint8): 0=IDLE, 1=DOWNLOADING, 2=UPLOADING
             }
         },
         'hardware': {

@@ -80,6 +80,7 @@ Icon
 .VolumeIcon.icns
 .com.apple.timemachine.donotpresent
 *.png
+*.csv
 
 # Windows
 Thumbs.db
