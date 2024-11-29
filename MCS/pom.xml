@@ -4,16 +4,21 @@
     xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>org.bossy</groupId>
-        <artifactId>bossy</artifactId>
-        <version>1.0.0</version>
-    </parent>
-
-    <artifactId>bossy-mcs</artifactId>
+    <groupId>org.bossy</groupId>
+    <artifactId>bossy</artifactId>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
-    <name>BOSSY - Mission Control System</name>
-    <description>Mission Control System using Yamcs</description>
+
+    <name>BOSSY - Basic Open-source Spacecraft Simulator with Yamcs</name>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <!--
+        Update this to the latest Yamcs release.
+        Check https://mvnrepository.com/artifact/org.yamcs/yamcs-core
+        -->
+        <yamcsVersion>5.10.8</yamcsVersion>
+    </properties>
 
     <dependencies>
         <!-- Yamcs core dependencies -->
@@ -26,13 +31,6 @@
             <groupId>org.yamcs</groupId>
             <artifactId>yamcs-web</artifactId>
             <version>${yamcsVersion}</version>
-        </dependency>
-        <!-- Testing dependencies -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.13.2</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 
