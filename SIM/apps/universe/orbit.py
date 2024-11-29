@@ -3,6 +3,10 @@ from datetime import datetime
 from .bodies import Earth, Sun, Moon
 from config import ORBIT_CONFIG, SIM_CONFIG
 
+class SimulationEndedException(Exception):
+    """Exception raised when simulation should end"""
+    pass
+
 class OrbitPropagator:
     def __init__(self):
         # Initialize logger
@@ -17,7 +21,10 @@ class OrbitPropagator:
         
         # Get initial orbital elements from config
         orbit_elements = ORBIT_CONFIG['spacecraft']['elements']
-        self.a = orbit_elements['semi_major_axis'] * 1000  # km to m
+        
+        # only set semi-major axis if not already set
+        if not hasattr(self, 'a'):
+            self.a = orbit_elements['semi_major_axis'] * 1000  # km to m
         self.e = orbit_elements['eccentricity']
         self.i = np.radians(orbit_elements['inclination'])
         self.raan = np.radians(orbit_elements['raan'])
@@ -37,7 +44,8 @@ class OrbitPropagator:
     def _calculate_state(self, time):
         """Calculate orbital state at given time"""
         dt = (time - self.mission_start).total_seconds()
-        
+
+        # Calculate position in orbital plane
         # Calculate mean motion
         n = 2 * np.pi / self.period
         
@@ -106,7 +114,8 @@ class OrbitPropagator:
         # Simple numerical integration of J2 effect
         pos_eci += 0.5 * j2_accel * dt**2
         
-        return {
+        # Create the state dictionary
+        state = {
             'position': pos_eci / 1000,  # m to km
             'velocity': vel_eci / 1000,  # m/s to km/s
             'lat': np.degrees(lat),
@@ -115,6 +124,13 @@ class OrbitPropagator:
             'eclipse': in_eclipse,
             'time': time
         }
+
+        # Now check altitude after we have calculated it
+        if state['alt'] < 50 + np.random.uniform(-7, 7):
+            self.logger.debug("Altitude is less than 50km - stopping simulation")
+            raise SimulationEndedException("Spacecraft LOST. This is the end my friend.")
+
+        return state
         
     def propagate(self, current_time):
         """Update and return orbital state"""
@@ -125,6 +141,18 @@ class OrbitPropagator:
                             f"lon={self.current_state['lon']:.1f}°, alt={self.current_state['alt']:.1f}km")
         
         return self.current_state
+    
+    def burn(self):
+        """Initiate deorbit burn by reducing semi-major axis"""
+        self.logger.info("Initiating deorbit burn")
+        
+        # Calculate change in semi-major axis for 4km altitude decrease
+        self.a -= 4000  # 4km in meters
+        
+        # Recalculate orbital period with new semi-major axis
+        self.period = 2 * np.pi * np.sqrt(self.a**3 / self.earth.gravitational_parameter())
+        
+        self.logger.debug(f"New semi-major axis: {self.a/1000:.1f}km")
         
     def _check_eclipse(self, pos_eci, sun_pos):
         """Simple cylindrical shadow model"""

@@ -263,7 +263,7 @@
             <Parameter name="ADCS_temperature" parameterTypeRef="int8_degC" shortDescription="ADCS Temperature (°C)"/>
             <Parameter name="ADCS_heater_setpoint" parameterTypeRef="int8_degC" shortDescription="ADCS Heater Setpoint (°C)"/>
             <Parameter name="ADCS_power_draw" parameterTypeRef="float_W" shortDescription="ADCS Power Draw (W)"/>
-            <Parameter name="ADCS_mode" parameterTypeRef="ADCSMode_Type" shortDescription="ADCS Mode (0=UNCONTROLLED, 1=LOCK, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD)"/>
+            <Parameter name="ADCS_mode" parameterTypeRef="ADCSMode_Type" shortDescription="ADCS Mode (0=UNCONTROLLED, 1=LOCK, 2=SUNPOINTING [+X to Sun], 3=NADIR [-Z to Earth], 4=DOWNLOAD [+Z to Earth], 5=EOL [+Z to velocity])"/>
             <Parameter name="ADCS_status" parameterTypeRef="ADCSStatus_Type" shortDescription="ADCS Status (0=UNCONTROLLED, 1=SLEWING, 2=POINTING)"/>
             <Parameter name="ADCS_quaternion_q1" parameterTypeRef="float" shortDescription="ADCS Quaternion (q1)"/>
             <Parameter name="ADCS_quaternion_q2" parameterTypeRef="float" shortDescription="ADCS Quaternion (q2)"/>
@@ -473,11 +473,12 @@
 			<EnumeratedArgumentType name="adcs_mode">
 				<IntegerDataEncoding sizeInBits="8"/>
 				<EnumerationList>
-					<Enumeration label="OFF" value="0"/>
+					<Enumeration label="UNCONTROLLED" value="0"/>
 					<Enumeration label="LOCKED" value="1"/>
 					<Enumeration label="SUNPOINTING" value="2"/>
 					<Enumeration label="NADIR" value="3"/>
 					<Enumeration label="DOWNLOAD" value="4"/>
+					<Enumeration label="EOL" value="5"/>
 				</EnumerationList>
 			</EnumeratedArgumentType>
 
@@ -798,7 +799,7 @@
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>		 
 				<ArgumentList>
-					<Argument argumentTypeRef="adcs_mode" name="mode" shortDescription="Desired ADCS mode" />
+					<Argument argumentTypeRef="adcs_mode" name="mode" shortDescription="Desired ADCS mode (0=UNCONTROLLED, 1=LOCKED, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD, 5=EOL)" />
 				</ArgumentList>	
 				<CommandContainer name="ADCS_SET_MODE">
 					<EntryList>
@@ -807,25 +808,14 @@
 					<BaseContainer containerRef="CommandPacket" />
 				</CommandContainer>		
 			</MetaCommand>	
-			<MetaCommand name="ADCS_SET_QUATERNION" shortDescription="Sets the ADCS quaternion">
+			<MetaCommand name="ADCS_DEORBIT_BURN" shortDescription="Initiates the ADCS deorbit burn">
 				<BaseMetaCommand metaCommandRef="CommandPacket">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Command_ID" argumentValue="34" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>		 
-				<ArgumentList>
-					<Argument argumentTypeRef="quaternion" name="q1" shortDescription="Desired quaternion q1" />
-					<Argument argumentTypeRef="quaternion" name="q2" shortDescription="Desired quaternion q2" />
-					<Argument argumentTypeRef="quaternion" name="q3" shortDescription="Desired quaternion q3" />
-					<Argument argumentTypeRef="quaternion" name="q4" shortDescription="Desired quaternion q4" />
-				</ArgumentList>	
-				<CommandContainer name="ADCS_SET_QUATERNION">
-					<EntryList>
-						<ArgumentRefEntry argumentRef="q1" />
-						<ArgumentRefEntry argumentRef="q2" />
-						<ArgumentRefEntry argumentRef="q3" />
-						<ArgumentRefEntry argumentRef="q4" />
-					</EntryList>
+				<CommandContainer name="ADCS_DEORBIT_BURN">
+					<EntryList/>
 					<BaseContainer containerRef="CommandPacket" />
 				</CommandContainer>		
 			</MetaCommand>	

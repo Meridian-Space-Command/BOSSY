@@ -9,7 +9,7 @@ from apps.spacecraft.payload import PayloadModule
 from apps.spacecraft.datastore import DatastoreModule
 from apps.spacecraft.obc import OBCModule
 from apps.spacecraft.comms import CommsModule
-from apps.universe.orbit import OrbitPropagator
+from apps.universe.orbit import OrbitPropagator, SimulationEndedException
 from apps.universe.environment import Environment
 from config import SIM_CONFIG, SPACECRAFT_CONFIG
 from logger import SimLogger
@@ -118,25 +118,31 @@ class Simulator:
                 # Debug logging after update
                 self.logger.debug(f"After update - Sim time: {Simulator._sim_time}")
                 
-                # Update subsystems in order
-                self.adcs.update(self.current_time)
-                
-                # Calculate total power draw and update power subsystem
-                total_power = self.calculate_total_power_draw()
-                self.power.set_total_power_draw(total_power)
-                self.power.update(self.current_time, self.adcs)
-                
-                # Update remaining subsystems
-                self.payload.update(self.current_time, self.adcs)
-                
-                # Create telemetry packet through CDH
-                tm_packet = self.cdh.create_tm_packet(self.current_time, self.subsystems)
-                
-                # Send telemetry packet through COMMS
-                self.comms.send_tm_packet(tm_packet)
+                try:
+                    # Update subsystems in order
+                    self.adcs.update(self.current_time)
+                    
+                    # Calculate total power draw and update power subsystem
+                    total_power = self.calculate_total_power_draw()
+                    self.power.set_total_power_draw(total_power)
+                    self.power.update(self.current_time, self.adcs)
+                    
+                    # Update remaining subsystems
+                    self.payload.update(self.current_time, self.adcs)
+                    
+                    # Create telemetry packet through CDH
+                    tm_packet = self.cdh.create_tm_packet(self.current_time, self.subsystems)
+                    
+                    # Send telemetry packet through COMMS
+                    self.comms.send_tm_packet(tm_packet)
 
-                # Update OBC uptime
-                self.obc.set_uptime(self.obc.get_uptime() + self.time_step)
+                    # Update OBC uptime
+                    self.obc.set_uptime(self.obc.get_uptime() + self.time_step)
+                    
+                except SimulationEndedException as e:
+                    self.logger.info(f"BTW: {str(e)}")
+                    self.stop()
+                    break
                 
                 # Sleep for time_step adjusted by time_factor
                 time.sleep(self.time_step / self.time_factor)

@@ -30,6 +30,7 @@ class ADCSModule:
         # Initialize mode and status from config
         self.mode = adcs_config['mode']
         self.status = adcs_config['status']
+        self._burn_initiated = False
         
         # Get pointing requirements from config
         self.accuracy_threshold = adcs_hw_config['pointing_requirements']['accuracy_threshold']
@@ -73,6 +74,10 @@ class ADCSModule:
         try:
             # Get new orbital state
             orbit_state = self.orbit_propagator.propagate(current_time)
+            
+            # If burn is initiated, call the burn method
+            if self._burn_initiated:
+                self.orbit_propagator.burn()
             
             # Debug logging
             self.logger.debug(f"Orbit state: {orbit_state}")
@@ -178,7 +183,7 @@ class ADCSModule:
                 self.logger.info(f"Received request to change to mode: {new_mode}")
                 
                 # Validate mode
-                if new_mode > 4:
+                if new_mode > 5:
                     self.logger.error(f"Invalid ADCS mode: {new_mode}")
                     return
                 
@@ -187,11 +192,13 @@ class ADCSModule:
                 self.status = 1  # SLEWING
                 self.pointing_start_time = None
                 self.logger.info(f"Beginning slew to requested mode {new_mode}")
-                
-            elif command_id == 34:   # ADCS_SET_QUATERNION
-                q = struct.unpack(">ffff", command_data)
-                self.logger.info(f"Setting ADCS quaternion to: {q}")
-                self.quaternion = list(q)
+
+            elif command_id == 34:  # ADCS_DEORBIT_BURN
+                self.logger.info("Initiating deorbit burn")
+                if self.mode == 5 and self.status == 2:
+                    self._burn_initiated = True
+                else:
+                    self.logger.error("Deorbit burn can only be initiated in ADCS mode = EOL and status = POINTING.")
                 
             else:
                 self.logger.warning(f"Unknown ADCS command ID: {command_id}")
@@ -206,64 +213,41 @@ class ADCSModule:
             control_mode = self.mode
             q_desired = None
 
-            if control_mode == 0:  # UNCONTROLLED
+            # First calculate desired quaternion based on mode
+            if control_mode == 0:  # OFF/UNCONTROLLED
                 self._uncontrolled_motion()
-
-            elif self.status == 2 or control_mode == 1:  # POINTING ACHIEVED or LOCK mode
-                self.logger.debug("POINTING ACHIEVED or LOCK mode")
+                return
+            
+            elif control_mode == 1:  # LOCK
                 if not hasattr(self, 'lock_quaternion'):
                     self.lock_quaternion = self.quaternion.copy()
-                if q_desired is None:
-                    q_desired = self.quaternion
-                elif control_mode == 1:
-                    q_desired = self.lock_quaternion
-                elif control_mode == 3:  # SUNPOINTING POINTING
-                    q_desired = self._q_desired_sunpointing(orbit_state)
-                elif control_mode == 3:  # NADIR POINTING
-                    q_desired = self._q_desired_nadir(orbit_state)
-                elif control_mode == 4:  # DOWNLOAD POINTING
-                    q_desired = self._q_desired_nadir(orbit_state)
-
+                q_desired = self.lock_quaternion
+            
+            elif control_mode == 2:  # SUNPOINTING
+                q_desired = self._q_desired_sunpointing(orbit_state)
+            
+            elif control_mode == 3:  # NADIR
+                q_desired = self._q_desired_nadir(orbit_state)
+            
+            elif control_mode == 4:  # DOWNLOAD
+                q_desired = self._q_desired_download(orbit_state)
+            
+            elif control_mode == 5:  # EOL
+                q_desired = self._q_desired_eol(orbit_state)
+            
+            # Then update attitude based on current status
+            if self.status == 2:  # POINTING ACHIEVED
                 q_current, ang_rate = self._keep_pointing(q_desired)
                 self.quaternion = q_current
                 self.angular_rate = ang_rate
-
-            elif control_mode == 2:  # SUNPOINTING (+X to Sun)
-                q_desired = self._q_desired_sunpointing(orbit_state)
-                q_current = self.quaternion  # Current attitude
+            else:  # SLEWING or other states
+                q_current = self.quaternion
                 q_current, ang_rate, errors = self._keep_slewing(q_desired, q_current)
-                self.quaternion = q_current 
+                self.quaternion = q_current
                 self.angular_rate = ang_rate
 
-                if (np.abs(errors[0]) > self.pointing_accuracy * 2.0) | (np.abs(errors[1]) > self.pointing_accuracy * 2.0) | (np.abs(errors[2]) > self.pointing_accuracy * 2.0):  # If error more than twice pointing accuracy
-                    self.status = 1  # SLEWING
-                else:
-                    self.status = 2  # POINTING ACHIEVED
-                    rand_noise = np.random.uniform(-0.001, 0.001, 3)
-                    self.angular_rate = np.array([0.0, 0.0, 0.0]) + rand_noise
-                
-            elif control_mode == 3:  # NADIR (-Z to Earth)
-                q_desired = self._q_desired_nadir(orbit_state)
-                q_current = self.quaternion  # Current attitude
-                q_current, ang_rate, errors = self._keep_slewing(q_desired, q_current)
-                self.quaternion = q_current 
-                self.angular_rate = ang_rate
-
-                if (np.abs(errors[0]) > self.pointing_accuracy * 2.0) | (np.abs(errors[1]) > self.pointing_accuracy * 2.0) | (np.abs(errors[2]) > self.pointing_accuracy * 2.0):  # If error more than twice pointing accuracy
-                    self.status = 1  # SLEWING
-                else:
-                    self.status = 2  # POINTING ACHIEVED
-                    rand_noise = np.random.uniform(-0.001, 0.001, 3)
-                    self.angular_rate = np.array([0.0, 0.0, 0.0]) + rand_noise
-
-            elif control_mode == 4:  # DOWNLOAD (+Z to Earth)
-                q_desired = self._q_desired_download(orbit_state)  # Convert to quaternion
-                q_current = self.quaternion  # Current attitude
-                q_current, ang_rate, errors = self._keep_slewing(q_desired, q_current)
-                self.quaternion = q_current 
-                self.angular_rate = ang_rate
-
-                if (np.abs(errors[0]) > self.pointing_accuracy * 2.0) | (np.abs(errors[1]) > self.pointing_accuracy * 2.0) | (np.abs(errors[2]) > self.pointing_accuracy * 2.0):  # If error more than twice pointing accuracy
+                # Update status based on pointing error
+                if max(abs(np.array(errors))) > self.pointing_accuracy * 2.0:
                     self.status = 1  # SLEWING
                 else:
                     self.status = 2  # POINTING ACHIEVED
@@ -271,7 +255,8 @@ class ADCSModule:
                     self.angular_rate = np.array([0.0, 0.0, 0.0]) + rand_noise
 
             self.angular_rate_total = np.linalg.norm(self.angular_rate)
-                
+            self.logger.debug(f"Updated attitude - quaternion: {self.quaternion}, angular_rate: {self.angular_rate}")
+            
         except Exception as e:
             self.logger.error(f"Error in attitude update: {str(e)}")
             self.status = 0  # ERROR
@@ -291,35 +276,54 @@ class ADCSModule:
         return q_current, ang_rate
     
     def _keep_slewing(self, q_desired, q_current):
-        rpy_desired = list(self._quaternion_to_euler(q_desired))  # Current Euler angles
-        rpy_current = list(self._quaternion_to_euler(q_current))  # Current Euler angles
+        """Update attitude during slewing maneuvers"""
+        
+        # Convert quaternions to Euler angles
+        rpy_desired = list(self._quaternion_to_euler(q_desired))
+        rpy_current = list(self._quaternion_to_euler(q_current))
+        
+        # Calculate errors in each axis
         x_error = rpy_desired[0] - rpy_current[0]  # Roll error
         y_error = rpy_desired[1] - rpy_current[1]  # Pitch error
-        z_error = rpy_desired[2] - rpy_current[2]  # Yaw error  
-        applied_slew_rate_x = np.random.uniform(-0.1, 0.1) + self.nominal_slew_rate  # Add some randomness to slew rate 
-        applied_slew_rate_y = np.random.uniform(-0.1, 0.1) + self.nominal_slew_rate  # Add some randomness to slew rate 
-        applied_slew_rate_z = np.random.uniform(-0.1, 0.1) + self.nominal_slew_rate  # Add some randomness to slew rate 
-        rpy_current[0] = rpy_current[0] + (np.sign(x_error) * applied_slew_rate_x * self.time_step)
-        rpy_current[1] = rpy_current[1] + (np.sign(y_error) * applied_slew_rate_y * self.time_step)
-        rpy_current[2] = rpy_current[2] + (np.sign(z_error) * applied_slew_rate_z * self.time_step)
-        q_current = self._euler_to_quaternion(rpy_current[0], rpy_current[1], rpy_current[2])
-        ang_rate = np.array([applied_slew_rate_x, applied_slew_rate_y, applied_slew_rate_z])  # deg/s
-
-        error_angle = self._calculate_error_angle(self.quaternion, q_desired)
-        est_time_to_target = (error_angle / (np.random.uniform(0.001, 0.1) + self.nominal_slew_rate)) * 1.1  # Add 10% to account for error
+        z_error = rpy_desired[2] - rpy_current[2]  # Yaw error
         
-        modes = ['OFF',"LOCK","SUNPOINTING","NADIR","DOWNLOAD"]
+        # Calculate slew rates with randomness
+        applied_slew_rate_x = np.random.uniform(-0.1, 0.1) + self.nominal_slew_rate
+        applied_slew_rate_y = np.random.uniform(-0.1, 0.1) + self.nominal_slew_rate
+        applied_slew_rate_z = np.random.uniform(-0.1, 0.1) + self.nominal_slew_rate
+        
+        # Update current angles based on errors and slew rates
+        rpy_current[0] += np.sign(x_error) * applied_slew_rate_x * self.time_step
+        rpy_current[1] += np.sign(y_error) * applied_slew_rate_y * self.time_step
+        rpy_current[2] += np.sign(z_error) * applied_slew_rate_z * self.time_step
+        
+        # Convert back to quaternion
+        q_new = self._euler_to_quaternion(rpy_current[0], rpy_current[1], rpy_current[2])
+        
+        # Calculate angular rates
+        ang_rate = np.array([
+            np.sign(x_error) * applied_slew_rate_x,
+            np.sign(y_error) * applied_slew_rate_y,
+            np.sign(z_error) * applied_slew_rate_z
+        ])
+        
+        # Debug logging
+        error_angle = self._calculate_error_angle(q_current, q_desired)
+        est_time_to_target = (error_angle / (np.random.uniform(0.001, 0.1) + self.nominal_slew_rate)) * 1.1
+        
+        modes = ['OFF', "LOCK", "SUNPOINTING", "NADIR", "DOWNLOAD", "EOL"]
         self.logger.debug(f"                     Going to: {modes[self.mode]}")
-        self.logger.debug(f"  Target quaternion for NADIR: {q_desired}")
-        self.logger.debug(f"Target Euler angles for NADIR: {rpy_desired} deg")
-        self.logger.debug(f"           Current quaternion: {q_current}")
+        self.logger.debug(f"  Target quaternion for {modes[self.mode]}: {q_desired}")
+        self.logger.debug(f"Target Euler angles for {modes[self.mode]}: {rpy_desired} deg")
+        self.logger.debug(f"           Current quaternion: {q_new}")
         self.logger.debug(f"         Current Euler angles: {rpy_current} deg")
         self.logger.debug(f"           Applied slew rates: {applied_slew_rate_x:.2f} deg/s, {applied_slew_rate_y:.2f} deg/s, {applied_slew_rate_z:.2f} deg/s")
         self.logger.debug(f"                  Euler error: {x_error:.2f} deg, {y_error:.2f} deg, {z_error:.2f} deg")
-        self.logger.debug(f"     Estimated time to target: {est_time_to_target:.2f} seconds")    
+        self.logger.debug(f"     Estimated time to target: {est_time_to_target:.2f} seconds")
         self.logger.debug(f"            Pointing accuracy: {self.pointing_accuracy:.2f} deg")
-
-        return q_current, ang_rate, [x_error,y_error,z_error]
+        
+        return q_new, ang_rate, [x_error, y_error, z_error]
+            
 
     def _q_desired_sunpointing(self, orbit_state):
         sun_pos = self.orbit_propagator.sun.get_position_at_time(orbit_state['time'])  # Get Sun position 
@@ -364,6 +368,41 @@ class ADCSModule:
         R = np.column_stack((x_body, y_body, z_body))  # Form rotation matrix
         q_desired = self._rotation_matrix_to_quaternion(R)  # Convert to quaternion
         return q_desired
+    
+    def _q_desired_eol(self, orbit_state):
+        """Calculate desired quaternion for EOL mode (velocity-aligned attitude)"""
+        try:
+            # Get velocity vector from orbit state
+            velocity = np.array(orbit_state['velocity'])
+            velocity_vec = velocity / np.linalg.norm(velocity)  # Normalize
+            
+            # Set +Z axis to point in velocity direction
+            z_body = velocity_vec
+            
+            # Use similar approach as other pointing modes to create orthogonal frame
+            temp_vec = np.array([0, 0, 1])  # Try using Z-axis first
+            x_body = np.cross(z_body, temp_vec)
+            if np.linalg.norm(x_body) < 1e-10:  # If vectors were parallel
+                temp_vec = np.array([0, 1, 0])  # Try Y-axis instead
+                x_body = np.cross(z_body, temp_vec)
+            x_body = x_body / np.linalg.norm(x_body)  # Normalize
+            
+            y_body = np.cross(z_body, x_body)  # Y-axis completes right-handed system
+            y_body = y_body / np.linalg.norm(y_body)  # Normalize
+            
+            # Form rotation matrix and convert to quaternion
+            R = np.column_stack((x_body, y_body, z_body))
+            q_desired = self._rotation_matrix_to_quaternion(R)
+            
+            self.logger.debug(f"EOL mode - Velocity vector: {velocity_vec}")
+            self.logger.debug(f"EOL mode - Desired quaternion: {q_desired}")
+            
+            return q_desired
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating EOL quaternion: {str(e)}")
+            # Return identity quaternion as fallback
+            return np.array([0, 0, 0, 1])
 
     def _uncontrolled_motion(self):
         """Update attitude for uncontrolled spacecraft (OFF mode or UNCONTROLLED status)"""
@@ -378,6 +417,7 @@ class ADCSModule:
         rpy_current[2] = rpy_current[2] + (applied_random_rate_z * self.time_step)
         q_current = self._euler_to_quaternion(rpy_current[0], rpy_current[1], rpy_current[2])
         self.angular_rate = np.array([applied_random_rate_x, applied_random_rate_y, applied_random_rate_z])  # deg/s
+        self.angular_rate_total = np.linalg.norm(self.angular_rate)
         self.quaternion = q_current
 
     def _euler_to_quaternion(self, roll_deg, pitch_deg, yaw_deg):
@@ -541,6 +581,16 @@ class ADCSModule:
     def altitude(self):
         """Get current altitude in km"""
         return self.position[2]
+    
+    @property
+    def burn_initiated(self):
+        """Get burn initiation status"""
+        return self._burn_initiated
+    
+    @burn_initiated.setter
+    def burn_initiated(self, value):
+        """Set burn initiation status"""
+        self._burn_initiated = value
     
     def get_power_draw(self):
         """Get current power draw in Watts"""
