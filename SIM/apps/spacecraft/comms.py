@@ -6,9 +6,8 @@ from config import SPACECRAFT_CONFIG
 import numpy as np
 
 class CommsModule:
-    def __init__(self, cdh):
+    def __init__(self):
         self.logger = SimLogger.get_logger("CommsModule")
-        self.cdh = cdh
         config = SPACECRAFT_CONFIG['spacecraft']['initial_state']['comms']
         comms_config = SPACECRAFT_CONFIG['spacecraft']['comms']
         
@@ -16,7 +15,9 @@ class CommsModule:
         self.state = config['state']
         self.temperature = config['temperature']
         self.heater_setpoint = config['heater_setpoint']
-        self.power_draw = config['power_draw']
+        self.rx_power_draw = config['rx_power_draw']
+        self.txrx_power_draw = config['txrx_power_draw']
+        self.power_draw = self.txrx_power_draw
         self.mode = config['mode']
         
         # Communication parameters
@@ -33,9 +34,19 @@ class CommsModule:
         self.HOST = comms_config['host']
         
         self.running = False
+        self.cdh = None  # Will be set later via set_cdh
+        
+    def set_cdh(self, cdh):
+        """Set reference to CDH module"""
+        self.cdh = cdh
         
     def get_telemetry(self):
         """Package current COMMS state into telemetry format"""
+        if self.mode == 0:
+            self.power_draw = self.rx_power_draw + np.random.uniform(-0.05, 0.05)
+        else:
+            self.power_draw = self.txrx_power_draw + np.random.uniform(-0.05, 0.05)
+
         values = [
             np.uint8(self.state),              # SubsystemState_Type (8 bits)
             np.int8(self.temperature),         # int8_degC (8 bits)
@@ -134,3 +145,11 @@ class CommsModule:
                 if self.running:
                     self.logger.error(f"Socket error: {e}")
                 break
+
+    def set_mode(self, mode_requested):
+        """Set the COMMS mode"""
+        self.mode = mode_requested
+
+    def get_power_draw(self):
+        """Get current power draw in Watts"""
+        return self.power_draw

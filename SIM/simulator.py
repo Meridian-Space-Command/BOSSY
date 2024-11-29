@@ -3,30 +3,53 @@ import signal
 import sys
 from datetime import datetime, timedelta
 from apps.spacecraft.cdh import CDHModule
+from apps.spacecraft.adcs import ADCSModule
+from apps.spacecraft.power import PowerModule
+from apps.spacecraft.payload import PayloadModule
+from apps.spacecraft.datastore import DatastoreModule
+from apps.spacecraft.obc import OBCModule
+from apps.spacecraft.comms import CommsModule
 from config import SIM_CONFIG
 from logger import SimLogger
 
 class Simulator:
-    _sim_time = SIM_CONFIG['mission_start_time']  # Initialize at class level
+    _sim_time = SIM_CONFIG['mission_start_time']
     _epoch = SIM_CONFIG['epoch']
     
     @classmethod
     def get_sim_time(cls):
-        return cls._sim_time  # Simply return the current simulation time
+        return cls._sim_time
     
     @classmethod
     def get_epoch(cls):
-        return cls._epoch  # Simply return the epoch time
+        return cls._epoch
 
     def __init__(self):
         self.logger = SimLogger.get_logger("Simulator")
         
-        # Initialize CDH (which initializes all other subsystems)
+        # Initialize all subsystems independently
+        self.adcs = ADCSModule()
+        self.power = PowerModule()
+        self.payload = PayloadModule(self.adcs)  # Payload needs ADCS for pointing
+        self.datastore = DatastoreModule()
+        self.obc = OBCModule()
         self.cdh = CDHModule()
-        self.cdh.set_simulator(self)  # Set simulator reference
+        self.comms = CommsModule()
         
-        # Start the COMMS module
-        self.cdh.comms.start()
+        # Create subsystems dictionary for CDH and telemetry
+        self.subsystems = {
+            'obc': self.obc,
+            'cdh': self.cdh,
+            'power': self.power,
+            'adcs': self.adcs,
+            'comms': self.comms,
+            'payload': self.payload,
+            'datastore': self.datastore
+        }
+        
+        # Set up COMMS with CDH reference for command routing
+        self.comms.set_cdh(self.cdh)
+        self.comms.start()
         
         # Get simulation configuration
         self.mission_start_time = SIM_CONFIG['mission_start_time']
@@ -45,11 +68,21 @@ class Simulator:
         self.logger.info(f"Time step: {self.time_step}s, Time factor: {self.time_factor}x")
         self.logger.info("Press Ctrl+C to stop the simulator")
 
-    def signal_handler(self, signum, frame):
-        """Handle shutdown signals"""
-        self.logger.info("\nShutdown signal received. Stopping simulator...")
-        self.stop()
-        sys.exit(0)
+    def calculate_total_power_draw(self):
+        """Calculate total power draw from all subsystems"""
+        power_draws = {
+            name: subsystem.get_power_draw()
+            for name, subsystem in self.subsystems.items()
+        }
+        
+        self.logger.debug("Power draws by subsystem:")
+        for name, draw in power_draws.items():
+            self.logger.debug(f"  {name}: {draw}W")
+            
+        total_power = sum(power_draws.values())
+        self.logger.debug(f"Total power draw: {total_power}W")
+        
+        return total_power
 
     def run(self):
         self.running = True
@@ -66,17 +99,22 @@ class Simulator:
                 # Debug logging after update
                 self.logger.debug(f"After update - Sim time: {Simulator._sim_time}")
                 
-                # Update subsystems
-                self.cdh.adcs.update(self.current_time)
-                self.cdh.power.update(self.current_time, self.cdh.adcs)
-                self.cdh.payload.update(self.current_time, self.cdh.adcs)
-                #self.cdh.obc.update(self.current_time)
+                # Update subsystems in order
+                self.adcs.update(self.current_time)
+                
+                # Calculate total power draw and update power subsystem
+                total_power = self.calculate_total_power_draw()
+                self.power.set_total_power_draw(total_power)
+                self.power.update(self.current_time, self.adcs)
+                
+                # Update remaining subsystems
+                self.payload.update(self.current_time, self.adcs)
                 
                 # Create telemetry packet through CDH
-                tm_packet = self.cdh.create_tm_packet(self.current_time)
+                tm_packet = self.cdh.create_tm_packet(self.current_time, self.subsystems)
                 
                 # Send telemetry packet through COMMS
-                self.cdh.comms.send_tm_packet(tm_packet)
+                self.comms.send_tm_packet(tm_packet)
                 
                 # Sleep for time_step adjusted by time_factor
                 time.sleep(self.time_step / self.time_factor)
@@ -85,11 +123,17 @@ class Simulator:
             self.logger.error(f"Error in simulation loop: {str(e)}")
             self.stop()
 
+    def signal_handler(self, signum, frame):
+        """Handle shutdown signals"""
+        self.logger.info("\nShutdown signal received. Stopping simulator...")
+        self.stop()
+        sys.exit(0)
+
     def stop(self):
         """Clean shutdown of simulator"""
         self.running = False
         self.logger.info("Stopping COMMS module...")
-        self.cdh.comms.stop()
+        self.comms.stop()
         self.logger.info("Simulator stopped")
 
 if __name__ == "__main__":

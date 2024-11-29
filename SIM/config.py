@@ -46,9 +46,8 @@ SPACECRAFT_CONFIG = {
                 'temperature': 20,    # int8_degC: Operating temperature in degrees Celsius
                 'heater_setpoint': 25,# int8_degC: Temperature setpoint for heater control
                 'power_draw': 0.4,    # float_W: Power consumption in Watts
-                'battery_voltage': 7.4,# float_V: Battery voltage in Volts
+                'battery_voltage': 7.95,# float_V: Battery voltage in Volts
                 'battery_current': 0.0,# float_A: Battery current in Amperes
-                'battery_charge': 80.0,# float_percent: Battery charge percentage
                 'power_balance': 0,   # PowerBalance_Type (uint8): 0=BALANCED, 1=POSITIVE, 2=NEGATIVE
                 'solar_total_generation': 0.0,  # float_W: Total solar power generation in Watts
                 'solar_panel_generation': {     # float_W: Per-panel solar generation in Watts
@@ -78,7 +77,8 @@ SPACECRAFT_CONFIG = {
                 'state': 2,          # SubsystemState_Type (uint8): 0=OFF, 1=IDLE, 2=ACTIVE, 3=ERROR
                 'temperature': 20,    # int8_degC: Operating temperature in degrees Celsius
                 'heater_setpoint': 25,# int8_degC: Temperature setpoint for heater control
-                'power_draw': 3.7,    # float_W: Power consumption in Watts
+                'rx_power_draw': 1.0, # float_W: Power consumption in Watts
+                'txrx_power_draw': 3.7,    # float_W: Power consumption in Watts
                 'mode': 1,           # CommsMode_Type (uint8): 0=RX, 1=TXRX
                 'uplink_bitrate': 32000,   # uint32_bps: Uplink data rate in bits per second
                 'downlink_bitrate': 128000  # uint32_bps: Downlink data rate in bits per second
@@ -89,7 +89,8 @@ SPACECRAFT_CONFIG = {
                 'state': 2,          # SubsystemState_Type (uint8): 0=OFF, 1=IDLE, 2=ACTIVE, 3=ERROR
                 'temperature': 20,    # int8_degC: Operating temperature in degrees Celsius
                 'heater_setpoint': 25,# int8_degC: Temperature setpoint for heater control
-                'power_draw': 1.8,    # float_W: Power consumption in Watts
+                'idle_power_draw': 0.5, # float_W: Power consumption in Watts when idle
+                'capturing_power_draw': 4.7,    # float_W: Power consumption in Watts when capturing
                 'status': 0          # PayloadStatus_Type (uint8): 0=IDLE, 1=CAPTURING
             },
 

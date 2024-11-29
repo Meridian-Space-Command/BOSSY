@@ -17,6 +17,9 @@ class OBCModule:
         
     def get_telemetry(self):
         """Package current OBC state into telemetry format"""
+        # Add small random variation to power draw
+        self.power_draw = self.power_draw + np.random.uniform(-0.05, 0.05)
+        
         values = [
             np.uint8(self.state),              # SubsystemState_Type (8 bits)
             np.int8(self.temperature),         # int8_degC (8 bits)
@@ -54,13 +57,27 @@ class OBCModule:
                 
             elif command_id == 14:   # OBC_RESET
                 self.logger.info("Resetting OBC")
-                self.state = 0
-                self.mode = 0
-                self.heater_state = 0
-                self.heater_setpoint = 0.0
+                self._reset()
                 
             else:
                 self.logger.warning(f"Unknown OBC command ID: {command_id}")
                 
         except struct.error as e:
             self.logger.error(f"Error unpacking OBC command {command_id}: {e}")
+
+    def _reset(self):
+        """Reset OBC to initial state"""
+        config = SPACECRAFT_CONFIG['spacecraft']['initial_state']['obc']
+        self.state = config['state']
+        self.mode = config['mode']
+        self.heater_setpoint = config['heater_setpoint']
+        self.power_draw = config['power_draw']
+        self.logger.info("OBC reset complete")
+
+    def get_mode(self):
+        """Get the current OBC mode"""
+        return self.mode
+
+    def get_power_draw(self):
+        """Get current power draw in Watts"""
+        return self.power_draw

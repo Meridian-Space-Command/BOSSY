@@ -14,17 +14,25 @@ class PayloadModule:
         self.logger = SimLogger.get_logger("PayloadModule")
         config = SPACECRAFT_CONFIG['spacecraft']['initial_state']['payload']
         
+        # Store ADCS reference
+        self.adcs_module = adcs
+        
         # Initialize PAYLOAD state from config
         self.state = config['state']
         self.temperature = config['temperature']
         self.heater_setpoint = config['heater_setpoint']
-        self.power_draw = config['power_draw']
+        self.idle_power_draw = config['idle_power_draw']
+        self.capturing_power_draw = config['capturing_power_draw']
+        self.power_draw = self.idle_power_draw
         self.status = config['status']
         self.storage_path = SPACECRAFT_CONFIG['spacecraft']['initial_state']['datastore']['storage_path']
-        self.adcs_module = adcs  # Reference to ADCS module
-        self.latitude = self.adcs_module.position[0]
-        self.longitude = self.adcs_module.position[1]
-        self.altitude = self.adcs_module.position[2]
+        
+        # Get position from ADCS
+        self.latitude = self.adcs_module.latitude
+        self.longitude = self.adcs_module.longitude
+        self.altitude = self.adcs_module.altitude
+        
+        # Time configuration
         self.mission_epoch = SIM_CONFIG['epoch']
         self.current_time = SIM_CONFIG['mission_start_time']
 
@@ -35,6 +43,11 @@ class PayloadModule:
         
     def get_telemetry(self):
         """Package current PAYLOAD state into telemetry format"""
+        if self.status == 0:
+            self.power_draw = self.idle_power_draw + np.random.uniform(-0.05, 0.05)
+        else:
+            self.power_draw = self.capturing_power_draw + np.random.uniform(-0.05, 0.05)
+            
         values = [
             np.uint8(self.state),              # SubsystemState_Type (8 bits)
             np.int8(self.temperature),         # int8_degC (8 bits)
@@ -47,12 +60,14 @@ class PayloadModule:
     
     def update(self, current_time, adcs):
         """Update PAYLOAD state"""
-        self.adcs = adcs
-        self.latitude = self.adcs.latitude
-        self.longitude = self.adcs.longitude
-        self.altitude = self.adcs.altitude
+        # Update time
         self.current_time = current_time
         
+        # Update position from ADCS
+        self.latitude = adcs.latitude
+        self.longitude = adcs.longitude
+        self.altitude = adcs.altitude
+
     def process_command(self, command_id, command_data):
         """Process PAYLOAD commands (Command_ID range 50-59)"""
         self.logger.info(f"Processing PAYLOAD command {command_id}: {command_data.hex()}")
@@ -151,3 +166,7 @@ class PayloadModule:
             self.logger.error(f"Error capturing/saving image: {e}")
             self.status = 0  # Set back to IDLE on error
         return
+
+    def get_power_draw(self):
+        """Get current power draw in Watts"""
+        return self.power_draw

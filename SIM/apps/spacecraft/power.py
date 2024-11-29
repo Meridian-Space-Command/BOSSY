@@ -23,7 +23,6 @@ class PowerModule:
         # Battery state
         self.battery_voltage = config['battery_voltage']
         self.battery_current = config['battery_current']
-        self.battery_charge = config['battery_charge']
         
         # Power balance
         self.power_balance = config['power_balance']
@@ -37,6 +36,7 @@ class PowerModule:
         
     def get_telemetry(self):
         """Package current POWER state into telemetry format"""
+        self.power_draw = self.power_draw + np.random.uniform(-0.05, 0.05)
         values = [
             np.uint8(self.state),                       # SubsystemState_Type (8 bits)
             np.int8(self.temperature),                  # int8_degC (8 bits)
@@ -90,25 +90,10 @@ class PowerModule:
             # Get orbit state
             orbit_state = self.orbit_propagator.propagate(current_time)
 
-            # Get total power draw
-            self.total_power_draw = self._total_power_draw()
-
-            # Reset total generation
-            self.solar_total_generation = 0.0
-            self.solar_panel_generation = {
-                'pX': 0.0,
-                'nX': 0.0,
-                'pY': 0.0,
-                'nY': 0.0
-            }
-            
             # If in eclipse, no solar generation
             if orbit_state['eclipse']:
                 self.solar_panel_generation = {
-                    'pX': 0.0,
-                    'nX': 0.0,
-                    'pY': 0.0,
-                    'nY': 0.0
+                    'pX': 0.0, 'nX': 0.0, 'pY': 0.0, 'nY': 0.0
                 }
             else:
                 # Get sun position and calculate panel angles using ADCS quaternion
@@ -121,60 +106,46 @@ class PowerModule:
                 
                 # Calculate generation for each panel
                 for panel in ['pX', 'nX', 'pY', 'nY']:
-                    # Convert angle to cosine factor (angle is in degrees)
                     angle = panel_angles[panel]
-                    # Only generate power if angle is less than 90 degrees
-                    if angle < 90:
+                    if angle < 90:  # Only generate power if angle is less than 90 degrees
                         angle_factor = np.cos(np.radians(angle))
+                        power = (power_config['solar_flux'] * 
+                                power_config['solar_efficiency'] * 
+                                power_config['solar_panels'][panel]['area'] * 
+                                angle_factor)
                     else:
-                        angle_factor = 0.0
+                        power = 0.0
                         
-                    power = (power_config['solar_flux'] * 
-                            power_config['solar_efficiency'] * 
-                            power_config['solar_panels'][panel]['area'] * 
-                            angle_factor)
-                    
                     self.solar_panel_generation[panel] = power
-                    self.logger.debug(f"Panel {panel}: angle_factor={angle_factor:.3f}, power={power:.2f}W")
                     
             # Update individual panel values
             self.solar_panel_generation_pX = self.solar_panel_generation['pX']
             self.solar_panel_generation_nX = self.solar_panel_generation['nX']
             self.solar_panel_generation_pY = self.solar_panel_generation['pY']
             self.solar_panel_generation_nY = self.solar_panel_generation['nY']
-
-            self.logger.debug(f"Solar panel generation: {self.solar_panel_generation}")
             
             # Calculate total generation
             self.total_power_generation = sum(self.solar_panel_generation.values())
-
-            self.logger.debug(f"Total power draw: {self.total_power_draw} W")
-            self.logger.debug(f"Solar total generation: {self.total_power_generation} W")
             
             # Simple power balance calculation
             if self.total_power_generation > self.total_power_draw:
                 self.power_balance = 1  # POSITIVE
-                self.battery_charge = min(100.0, self.battery_charge + 0.027)  # Very simple charging
-                self.battery_voltage = min(self.battery_voltage + 0.007, 8.4)  # Very simple charging
-                self.battery_current = min(self.battery_current + 0.007, 0.1)  # Very simple charging
+                self.battery_voltage = min(self.battery_voltage + 0.002, 8.2)
+                self.battery_current = min(self.battery_current + 0.007, 0.1)
             elif self.total_power_generation < self.total_power_draw:
                 self.power_balance = 2  # NEGATIVE
-                self.battery_charge = max(0.0, self.battery_charge - 0.0307)  # Very simple discharging
-                self.battery_voltage = max(self.battery_voltage - 0.007, 6.0)  # Very simple discharging
-                self.battery_current = max(self.battery_current - 0.007, -0.1)  # Very simple discharging
+                self.battery_voltage = max(self.battery_voltage - 0.0005, 7.6)
+                self.battery_current = max(self.battery_current - 0.007, -0.1)
             else:
                 self.power_balance = 0  # BALANCED
-                
+            
         except Exception as e:
             self.logger.error(f"Error updating power state: {str(e)}")
 
-    def _total_power_draw(self):
-        """Calculate total power draw based on subsystem states"""
-        obc_power_draw = SPACECRAFT_CONFIG['spacecraft']['initial_state']['obc']['power_draw'] + np.random.uniform(-0.05, 0.05)
-        cdh_power_draw = SPACECRAFT_CONFIG['spacecraft']['initial_state']['cdh']['power_draw'] + np.random.uniform(-0.05, 0.05)
-        power_power_draw = SPACECRAFT_CONFIG['spacecraft']['initial_state']['power']['power_draw'] + np.random.uniform(-0.05, 0.05)
-        adcs_power_draw = SPACECRAFT_CONFIG['spacecraft']['initial_state']['adcs']['power_draw'] + np.random.uniform(-0.05, 0.05)
-        comms_power_draw = SPACECRAFT_CONFIG['spacecraft']['initial_state']['comms']['power_draw'] + np.random.uniform(-0.05, 0.05)
-        payload_power_draw = SPACECRAFT_CONFIG['spacecraft']['initial_state']['payload']['power_draw'] + np.random.uniform(-0.05, 0.05)
-        data_storage_power_draw = SPACECRAFT_CONFIG['spacecraft']['initial_state']['datastore']['power_draw'] + np.random.uniform(-0.05, 0.05)  
-        return sum([obc_power_draw, cdh_power_draw, power_power_draw, adcs_power_draw, comms_power_draw, payload_power_draw, data_storage_power_draw])
+    def set_total_power_draw(self, total_draw):
+        """Set the total power draw from all subsystems"""
+        self.total_power_draw = total_draw
+
+    def get_power_draw(self):
+        """Get the total power draw from all subsystems"""
+        return self.power_draw

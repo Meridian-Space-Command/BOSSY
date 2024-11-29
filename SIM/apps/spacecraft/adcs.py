@@ -126,6 +126,8 @@ class ADCSModule:
         self.logger.debug(f"Quaternion: {self.quaternion}")
         self.logger.debug(f"Angular rate (deg/s): {np.degrees(self.angular_rate)}")
 
+        self.power_draw = self.power_draw + np.random.uniform(-0.05, 0.05)
+
         # Pack values in correct order with proper types
         values = [
             np.uint8(self.state),                    # SubsystemState_Type (8 bits)
@@ -539,3 +541,7 @@ class ADCSModule:
     def altitude(self):
         """Get current altitude in km"""
         return self.position[2]
+    
+    def get_power_draw(self):
+        """Get current power draw in Watts"""
+        return self.power_draw
