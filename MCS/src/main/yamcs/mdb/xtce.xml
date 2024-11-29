@@ -160,7 +160,7 @@
 			</IntegerParameterType>
 
 			<!-- ADCS Mode -->	
-			<IntegerParameterType name="ADCSMode_Type" shortDescription="ADCS Mode (0=OFF, 1=LOCK, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD)">
+			<IntegerParameterType name="ADCSMode_Type" shortDescription="ADCS Mode (0=UNCONTROLLED, 1=LOCK, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD)">
 				<IntegerDataEncoding sizeInBits="8"/>
 			</IntegerParameterType>	
 
@@ -262,7 +262,7 @@
             <Parameter name="ADCS_temperature" parameterTypeRef="int8_degC" shortDescription="ADCS Temperature (°C)"/>
             <Parameter name="ADCS_heater_setpoint" parameterTypeRef="int8_degC" shortDescription="ADCS Heater Setpoint (°C)"/>
             <Parameter name="ADCS_power_draw" parameterTypeRef="float_W" shortDescription="ADCS Power Draw (W)"/>
-            <Parameter name="ADCS_mode" parameterTypeRef="ADCSMode_Type" shortDescription="ADCS Mode (0=OFF, 1=LOCK, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD)"/>
+            <Parameter name="ADCS_mode" parameterTypeRef="ADCSMode_Type" shortDescription="ADCS Mode (0=UNCONTROLLED, 1=LOCK, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD)"/>
             <Parameter name="ADCS_status" parameterTypeRef="ADCSStatus_Type" shortDescription="ADCS Status (0=UNCONTROLLED, 1=SLEWING, 2=POINTING)"/>
             <Parameter name="ADCS_quaternion_q1" parameterTypeRef="float" shortDescription="ADCS Quaternion (q1)"/>
             <Parameter name="ADCS_quaternion_q2" parameterTypeRef="float" shortDescription="ADCS Quaternion (q2)"/>

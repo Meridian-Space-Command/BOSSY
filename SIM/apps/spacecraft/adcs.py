@@ -206,7 +206,7 @@ class ADCSModule:
             control_mode = self.mode
             q_desired = None
 
-            if control_mode == 0:  # UNCONTROLLED / OFF
+            if control_mode == 0:  # UNCONTROLLED
                 self._uncontrolled_motion()
 
             elif self.status == 2 or control_mode == 1:  # POINTING ACHIEVED or LOCK mode

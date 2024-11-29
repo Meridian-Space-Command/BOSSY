@@ -64,7 +64,7 @@ SPACECRAFT_CONFIG = {
                 'temperature': 20,    # int8_degC: Operating temperature in degrees Celsius
                 'heater_setpoint': 25,# int8_degC: Temperature setpoint for heater control
                 'power_draw': 2.3,    # float_W: Power consumption in Watts
-                'mode': 0,           # ADCSMode_Type (uint8): 0=OFF, 1=LOCK, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD
+                'mode': 0,           # ADCSMode_Type (uint8): 0=UNCONTROLLED, 1=LOCK, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD
                 'status': 0,         # ADCSStatus_Type (uint8): 0=UNCONTROLLED, 1=SLEWING, 2=POINTING
                 'quaternion': [0.707, 0.0, 0.0, 0.707],  # float[4]: Attitude quaternion [q1,q2,q3,q4]
                 'angular_rate': [0.0, 0.0, 0.0],     # float_deg_s[3]: Angular rates [x,y,z] in deg/s
