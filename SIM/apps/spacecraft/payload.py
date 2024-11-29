@@ -7,7 +7,6 @@ import requests
 import os
 from PIL import Image
 from io import BytesIO
-from datetime import datetime
 
 class PayloadModule:
     def __init__(self, adcs):

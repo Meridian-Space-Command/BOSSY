@@ -1,9 +1,6 @@
 import struct
-from logger import SimLogger
 from config import SPACECRAFT_CONFIG
 import numpy as np
-from ..universe.orbit import OrbitPropagator
-from ..universe.environment import Environment
 
 class PowerModule:
     def __init__(self, logger, orbit_propagator, environment, comms=None, payload=None):

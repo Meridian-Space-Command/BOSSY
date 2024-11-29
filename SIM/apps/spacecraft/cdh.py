@@ -2,7 +2,6 @@ import struct
 from logger import SimLogger
 from config import SPACECRAFT_CONFIG, SIM_CONFIG
 import numpy as np
-from datetime import datetime
 
 class CDHModule:
     def __init__(self):

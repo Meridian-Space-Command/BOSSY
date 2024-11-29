@@ -1,0 +1,20 @@
+# Core dependencies
+numpy
+pandas
+scipy
+pillow
+
+# API/Network
+requests
+yamcs-client
+
+# Other dependencies are part of Python standard library:
+# - socket
+# - threading
+# - datetime
+# - time
+# - csv
+# - configparser
+# - os
+# - sys
+# - logging

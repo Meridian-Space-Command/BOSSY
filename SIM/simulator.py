@@ -1,7 +1,7 @@
 import time
 import signal
 import sys
-from datetime import datetime, timedelta
+from datetime import timedelta
 from apps.spacecraft.cdh import CDHModule
 from apps.spacecraft.adcs import ADCSModule
 from apps.spacecraft.power import PowerModule

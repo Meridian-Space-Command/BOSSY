@@ -1,5 +1,4 @@
 import numpy as np
-from datetime import datetime
 from .bodies import Earth, Sun, Moon
 from config import ORBIT_CONFIG, SIM_CONFIG
 
