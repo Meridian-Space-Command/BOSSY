@@ -48,8 +48,14 @@ class OrbitPropagator:
         # Calculate mean motion
         n = 2 * np.pi / self.period
         
-        # Calculate mean anomaly
-        M = (n * dt) % (2 * np.pi)
+        # Convert initial true anomaly to initial mean anomaly
+        # First get eccentric anomaly from true anomaly
+        E0 = 2 * np.arctan(np.sqrt((1 - self.e)/(1 + self.e)) * np.tan(self.true_anomaly/2))
+        # Then get initial mean anomaly
+        M0 = E0 - self.e * np.sin(E0)
+        
+        # Calculate current mean anomaly including initial position
+        M = (M0 + n * dt) % (2 * np.pi)
         
         # Solve Kepler's equation (simple iteration)
         E = M
