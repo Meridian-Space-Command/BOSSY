@@ -9,6 +9,8 @@ from apps.spacecraft.payload import PayloadModule
 from apps.spacecraft.datastore import DatastoreModule
 from apps.spacecraft.obc import OBCModule
 from apps.spacecraft.comms import CommsModule
+from apps.universe.orbit import OrbitPropagator
+from apps.universe.environment import Environment
 from config import SIM_CONFIG
 from logger import SimLogger
 
@@ -27,14 +29,27 @@ class Simulator:
     def __init__(self):
         self.logger = SimLogger.get_logger("Simulator")
         
+        # Initialize orbit propagator and environment first
+        self.orbit_propagator = OrbitPropagator()
+        self.environment = Environment()
+        
         # Initialize all subsystems independently
         self.adcs = ADCSModule()
-        self.power = PowerModule()
+        self.comms = CommsModule()
         self.payload = PayloadModule(self.adcs)  # Payload needs ADCS for pointing
+        
+        # Initialize power module with dependencies
+        self.power = PowerModule(
+            logger=self.logger,
+            orbit_propagator=self.orbit_propagator,
+            environment=self.environment,
+            comms=self.comms,
+            payload=self.payload
+        )
+        
         self.datastore = DatastoreModule()
         self.obc = OBCModule()
         self.cdh = CDHModule()
-        self.comms = CommsModule()
         
         # Create subsystems dictionary for CDH and telemetry
         self.subsystems = {

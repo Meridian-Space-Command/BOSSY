@@ -6,16 +6,28 @@ from ..universe.orbit import OrbitPropagator
 from ..universe.environment import Environment
 
 class PowerModule:
-    def __init__(self):
-        self.logger = SimLogger.get_logger("PowerModule")
-        config = SPACECRAFT_CONFIG['spacecraft']['initial_state']['power']
+    def __init__(self, logger, orbit_propagator, environment, comms=None, payload=None):
+        """Initialize power subsystem
         
-        # Initialize orbit propagator and environment
-        self.orbit_propagator = OrbitPropagator()
-        self.environment = Environment()
+        Args:
+            logger: Logger instance
+            orbit_propagator: Orbit propagator instance
+            environment: Environment instance
+            comms: Optional CommsModule instance
+            payload: Optional PayloadModule instance
+        """
+        self.logger = logger
+        self.orbit_propagator = orbit_propagator
+        self.environment = environment
+        
+        # Store optional module references
+        self.comms = comms
+        self.payload = payload
         
         # Initialize POWER state from config
+        config = SPACECRAFT_CONFIG['spacecraft']['initial_state']['power']
         self.state = config['state']
+        self.power_balance = config['power_balance']
         self.temperature = config['temperature']
         self.heater_setpoint = config['heater_setpoint']
         self.power_draw = config['power_draw']
@@ -25,7 +37,6 @@ class PowerModule:
         self.battery_current = config['battery_current']
         
         # Power balance
-        self.power_balance = config['power_balance']
         self.total_power_draw = 0.0
         self.total_power_generation = 0.0
         self.solar_panel_generation = config['solar_panel_generation'].copy()
@@ -138,6 +149,12 @@ class PowerModule:
                 self.battery_current = max(self.battery_current - 0.007, -0.1)
             else:
                 self.power_balance = 0  # BALANCED
+
+            if hasattr(self, 'comms') and self.comms.mode == 1:
+                self.battery_voltage = self.battery_voltage - 0.0002
+
+            if hasattr(self, 'payload') and self.payload.status == 1:
+                self.battery_voltage = self.battery_voltage - 0.1
             
         except Exception as e:
             self.logger.error(f"Error updating power state: {str(e)}")
