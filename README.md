@@ -34,6 +34,10 @@ This batch of commands will delete all previous simulation data (because otherwi
 
 Go to a web browser and open the Yamcs web interface: `http://localhost:8090`
 
+### Stop Yamcs
+
+Go to the MCS terminal and press `Ctrl+c` (or `Cmd+c` on macOS).
+
 ### Run the simulator
 
 - Edit the `BOSSY/SIM/config.py` file to set the initial state of the simulation, spacecraft, environment, orbit, etc.
@@ -42,6 +46,10 @@ Run the simulator from the SIM terminal:
 ```
 python3 simulator.py
 ```
+
+### Stop the simulator
+
+Go to the SIM terminal and press `Ctrl+c` (or `Cmd+c` on macOS).
 
 ## ATS usage
 
