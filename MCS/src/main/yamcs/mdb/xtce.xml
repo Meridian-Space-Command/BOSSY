@@ -54,7 +54,7 @@
 				</UnitSet>
 				<IntegerDataEncoding sizeInBits="16" />
 			</IntegerParameterType>
-			<IntegerParameterType name="CCSDS_Time_Type" signed="false">
+			<IntegerParameterType name="Seconds_Time_Type" signed="false">
 				<UnitSet>
 					<Unit>s</Unit>
 				</UnitSet>
@@ -227,7 +227,7 @@
 			<Parameter name="CCSDS_Packet_ID" parameterTypeRef="CCSDS_Packet_ID_Type" shortDescription="CCSDS Packet ID"/>
 			<Parameter name="CCSDS_Packet_Sequence" parameterTypeRef="CCSDS_Packet_Sequence_Type" shortDescription="CCSDS Packet Sequence"/>
 			<Parameter name="CCSDS_Packet_Length" parameterTypeRef="CCSDS_Packet_Length_Type" shortDescription="CCSDS Packet Length (bytes)"/>
-			<Parameter name="CCSDS_Time" parameterTypeRef="CCSDS_Time_Type" shortDescription="CCSDS Time (s)"/>
+			<Parameter name="CCSDS_Time" parameterTypeRef="Seconds_Time_Type" shortDescription="CCSDS Time (s)"/>
 
             <!-- OBC Parameters --> 	
             <Parameter name="OBC_state" parameterTypeRef="SubsystemState_Type" shortDescription="OBC State (0=OFF, 1=IDLE, 2=ACTIVE, 3=ERROR)"/>
@@ -235,7 +235,8 @@
             <Parameter name="OBC_heater_setpoint" parameterTypeRef="int8_degC" shortDescription="OBC Heater Setpoint (°C)"/>
             <Parameter name="OBC_power_draw" parameterTypeRef="float_W" shortDescription="OBC Power Draw (W)"/>
             <Parameter name="OBC_mode" parameterTypeRef="OBCMode_Type" shortDescription="OBC Mode (0=SAFE, 1=NOMINAL, 2=ALLON)"/>
-
+            <Parameter name="OBC_uptime" parameterTypeRef="uint32" shortDescription="OBC Uptime since last OBC reset (s)"/>
+			
 			<!-- CDH Parameters -->
 			<Parameter name="CDH_state" parameterTypeRef="SubsystemState_Type" shortDescription="CDH State (0=OFF, 1=IDLE, 2=ACTIVE, 3=ERROR)"/>	
 			<Parameter name="CDH_temperature" parameterTypeRef="int8_degC" shortDescription="CDH Temperature (°C)"/>
@@ -335,6 +336,7 @@
 					<ParameterRefEntry parameterRef="OBC_heater_setpoint"/>
 					<ParameterRefEntry parameterRef="OBC_power_draw"/>
 					<ParameterRefEntry parameterRef="OBC_mode"/>		
+					<ParameterRefEntry parameterRef="OBC_uptime"/>
 					<ParameterRefEntry parameterRef="CDH_state"/>
 					<ParameterRefEntry parameterRef="CDH_temperature"/>
 					<ParameterRefEntry parameterRef="CDH_heater_setpoint"/>

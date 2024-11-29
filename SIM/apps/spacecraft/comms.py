@@ -40,6 +40,10 @@ class CommsModule:
         """Set reference to CDH module"""
         self.cdh = cdh
         
+    def set_subsystems(self, subsystems):
+        """Set reference to subsystems dictionary"""
+        self.subsystems = subsystems
+        
     def get_telemetry(self):
         """Package current COMMS state into telemetry format"""
         if self.mode == 0:
@@ -120,31 +124,27 @@ class CommsModule:
                 self.logger.error(f"Socket error while sending TM: {e}")
             
     def _tc_listener(self):
-        """Listen for incoming telecommands"""
-        while self.running:
+        """Listen for telecommands on UDP socket"""
+        while True:
             try:
                 data, addr = self.tc_socket.recvfrom(1024)
-                self.packets_received += 1
                 self.logger.info(f"Received TC from {addr}")
+                self.logger.debug(f"Raw data: {data.hex()}")
                 
-                # Parse CCSDS packet
-                try:
-                    # Skip CCSDS header (6 bytes) and timestamp (4 bytes)
-                    command_id = struct.unpack(">H", data[10:12])[0]  # 16-bit command ID
-                    command_data = data[12:]  # Rest is command data
-                    
-                    self.logger.debug(f"Parsed command ID: {command_id}, data: {command_data.hex()}")
-                    
-                    # Forward command to CDH for processing
-                    self.cdh.process_command(command_id, command_data)
-                    
-                except struct.error as e:
-                    self.logger.error(f"Error parsing telecommand: {e}")
-                    
-            except socket.error as e:
-                if self.running:
-                    self.logger.error(f"Socket error: {e}")
-                break
+                # Skip CCSDS header (6 bytes) and time (4 bytes)
+                header_size = 10
+                
+                # Parse command ID from next 2 bytes
+                command_id = struct.unpack(">H", data[header_size:header_size+2])[0]
+                command_data = data[header_size+2:]
+                
+                self.logger.debug(f"Parsed command ID: {command_id}, data: {command_data.hex()}")
+                
+                # Route command through CDH
+                self.cdh.route_command(command_id, command_data, self.subsystems)
+                
+            except Exception as e:
+                self.logger.error(f"Error in TC listener: {e}")
 
     def set_mode(self, mode_requested):
         """Set the COMMS mode"""

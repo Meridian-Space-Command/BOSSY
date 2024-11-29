@@ -11,7 +11,7 @@ from apps.spacecraft.obc import OBCModule
 from apps.spacecraft.comms import CommsModule
 from apps.universe.orbit import OrbitPropagator
 from apps.universe.environment import Environment
-from config import SIM_CONFIG
+from config import SIM_CONFIG, SPACECRAFT_CONFIG
 from logger import SimLogger
 
 class Simulator:
@@ -62,8 +62,9 @@ class Simulator:
             'datastore': self.datastore
         }
         
-        # Set up COMMS with CDH reference for command routing
+        # Set up COMMS with CDH reference and subsystems for command routing
         self.comms.set_cdh(self.cdh)
+        self.comms.set_subsystems(self.subsystems)
         self.comms.start()
         
         # Get simulation configuration
@@ -74,6 +75,9 @@ class Simulator:
         # Initialize simulation time
         self.current_time = self.mission_start_time
         self.running = False
+
+        # Initialize OBC uptime
+        self.obc.set_uptime(SPACECRAFT_CONFIG['spacecraft']['initial_state']['obc']['uptime'])
         
         # Setup signal handlers
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -130,6 +134,9 @@ class Simulator:
                 
                 # Send telemetry packet through COMMS
                 self.comms.send_tm_packet(tm_packet)
+
+                # Update OBC uptime
+                self.obc.set_uptime(self.obc.get_uptime() + self.time_step)
                 
                 # Sleep for time_step adjusted by time_factor
                 time.sleep(self.time_step / self.time_factor)

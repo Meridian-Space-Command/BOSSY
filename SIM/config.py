@@ -29,7 +29,8 @@ SPACECRAFT_CONFIG = {
                 'temperature': 20,    # int8_degC: Operating temperature in degrees Celsius
                 'heater_setpoint': 25,# int8_degC: Temperature setpoint for heater control
                 'power_draw': 0.6,    # float_W: Power consumption in Watts
-                'mode': 2            # OBCMode_Type (uint8): 0=SAFE, 1=NOMINAL, 2=ALLON
+                'mode': 2,            # OBCMode_Type (uint8): 0=SAFE, 1=NOMINAL, 2=ALLON
+                'uptime': 0           # uint32_s: Uptime in seconds
             },
 
             # CDH Initial State

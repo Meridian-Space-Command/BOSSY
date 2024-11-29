@@ -25,10 +25,11 @@ class OBCModule:
             np.int8(self.temperature),         # int8_degC (8 bits)
             np.int8(self.heater_setpoint),     # int8_degC (8 bits)
             np.float32(self.power_draw),       # float_W (32 bits)
-            np.uint8(self.mode)                # OBCMode_Type (8 bits)
+            np.uint8(self.mode),                # OBCMode_Type (8 bits)
+            np.uint32(self.uptime)              # uint32_s (32 bits)
         ]
         
-        return struct.pack(">BbbfB", *values)
+        return struct.pack(">BbbfBI", *values)
         
     def process_command(self, command_id, command_data):
         """Process OBC commands (Command_ID range 10-19)"""
@@ -72,6 +73,7 @@ class OBCModule:
         self.mode = config['mode']
         self.heater_setpoint = config['heater_setpoint']
         self.power_draw = config['power_draw']
+        self.uptime = config['uptime']
         self.logger.info("OBC reset complete")
 
     def get_mode(self):
@@ -81,3 +83,11 @@ class OBCModule:
     def get_power_draw(self):
         """Get current power draw in Watts"""
         return self.power_draw
+    
+    def set_uptime(self, uptime):
+        """Set the uptime in seconds"""
+        self.uptime = uptime
+        
+    def get_uptime(self):
+        """Get the uptime in seconds"""
+        return self.uptime
