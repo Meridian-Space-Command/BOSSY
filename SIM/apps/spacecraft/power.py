@@ -1,6 +1,7 @@
 import struct
 from config import SPACECRAFT_CONFIG
 import numpy as np
+from .adcs import ADCSModule
 
 class PowerModule:
     def __init__(self, logger, orbit_propagator, environment, comms=None, payload=None, datastore=None):
@@ -160,7 +161,7 @@ class PowerModule:
             # Simple power balance calculation
             if self.total_power_generation > self.total_power_draw:
                 self.power_balance = 1  # POSITIVE
-                if self.mode == 1 and self.status == 2:
+                if adcs_module.is_sunpointing:
                     self.battery_voltage = min(self.battery_voltage + 0.0005, 8.2)
                     self.battery_current = min(self.battery_current + 0.005, 0.1)
                 else:

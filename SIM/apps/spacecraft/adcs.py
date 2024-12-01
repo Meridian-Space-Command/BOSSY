@@ -453,11 +453,11 @@ class ADCSModule:
         applied_random_rate_x = np.random.uniform(0.01, 0.1)  # Add some randomness 
         applied_random_rate_y = np.random.uniform(0.01, 0.1)  # Add some randomness 
         applied_random_rate_z = np.random.uniform(0.01, 0.1)  # Add some randomness 
-        rpy_current[0] = rpy_current[0] + (applied_random_rate_x * self.time_step)
-        rpy_current[1] = rpy_current[1] + (applied_random_rate_y * self.time_step)
-        rpy_current[2] = rpy_current[2] + (applied_random_rate_z * self.time_step)
+        rpy_current[0] = rpy_current[0] + (applied_random_rate_x * self.time_step)  # Apply random rate to current angular rate 
+        rpy_current[1] = rpy_current[1] + (applied_random_rate_y * self.time_step)  # Apply random rate to current angular rate
+        rpy_current[2] = rpy_current[2] + (applied_random_rate_z * self.time_step)  # Apply random rate to current angular rate
         q_current = self._euler_to_quaternion(rpy_current[0], rpy_current[1], rpy_current[2])
-        self.angular_rate = np.array([applied_random_rate_x, applied_random_rate_y, applied_random_rate_z])  # deg/s
+        self.angular_rate = np.array([rpy_current[0]+applied_random_rate_x, rpy_current[1]+applied_random_rate_y, rpy_current[2]+applied_random_rate_z])  # deg/s
         self.angular_rate_total = np.linalg.norm(self.angular_rate)
         self.quaternion = q_current
 
@@ -632,6 +632,14 @@ class ADCSModule:
     def burn_initiated(self, value):
         """Set burn initiation status"""
         self._burn_initiated = value
+
+    @property
+    def is_sunpointing(self):
+        """Get current sunpointing status"""
+        if self.mode == 1 and self.status == 2:
+            return True
+        else:
+            return False
     
     def get_power_draw(self):
         """Get current power draw in Watts"""
