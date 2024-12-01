@@ -68,8 +68,8 @@ SPACECRAFT_CONFIG = {
                 'mode': 0,           # ADCSMode_Type (uint8): 0=UNCONTROLLED, 1=LOCK, 2=SUNPOINTING, 3=NADIR, 4=DOWNLOAD
                 'status': 0,         # ADCSStatus_Type (uint8): 0=UNCONTROLLED, 1=SLEWING, 2=POINTING
                 'quaternion': [0.707, 0.0, 0.0, 0.707],  # float[4]: Attitude quaternion [q1,q2,q3,q4]
-                'angular_rate': [0.0, 0.0, 0.0],     # float_deg_s[3]: Angular rates [x,y,z] in deg/s
-                'position': [0.0, 0.0, 500.0],           # [float_deg,float_deg,float_km]: [lat,lon,alt]
+                'angular_rate': [5.1, 4.6, 3.8],     # float_deg_s[3]: Angular rates [x,y,z] in deg/s
+                'position': [0.0, 0.0, 500.0],       # [float_deg,float_deg,float_km]: [lat,lon,alt] (doesn't need to match orbit params)
                 'eclipse': 0         # Eclipse_Type (uint8): 0=DAY, 1=NIGHT
             },
 
@@ -80,7 +80,7 @@ SPACECRAFT_CONFIG = {
                 'heater_setpoint': 25,# int8_degC: Temperature setpoint for heater control
                 'rx_power_draw': 1.0, # float_W: Power consumption in Watts
                 'txrx_power_draw': 3.7,    # float_W: Power consumption in Watts
-                'mode': 1,           # CommsMode_Type (uint8): 0=RX, 1=TXRX
+                'mode': 0,           # CommsMode_Type (uint8): 0=RX, 1=TXRX
                 'uplink_bitrate': 32000,   # uint32_bps: Uplink data rate in bits per second
                 'downlink_bitrate': 128000  # uint32_bps: Downlink data rate in bits per second
             },
@@ -127,7 +127,28 @@ SPACECRAFT_CONFIG = {
             },
             'eo_camera': {  # EO Camera Configuration
                 'resolution': 4096,  # pixels
-                'swath': 25.0,       # km, width of the swath in kilometers
+                'zoom': 4,  # from 1 to 16 zoom m/px
+                # zoom scale at the equator
+                # zoom  m/px
+                # 19  0.19
+                # 18  0.37
+                # 17  0.74
+                # 16  1.48
+                # 15  3
+                # 14  6
+                # 13  12
+                # 12  24
+                # 11  48
+                # 10  95
+                # 9  190
+                # 8  378
+                # 7  752
+                # 6  1,485
+                # 5  2,909
+                # 4  5,540
+                # 3  10,064
+                # 2  16,355
+                # 1  21,282
             }
         }
     }   

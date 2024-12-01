@@ -37,7 +37,7 @@ class PayloadModule:
 
         # EO Camera Configuration
         self.eo_camera = SPACECRAFT_CONFIG['spacecraft']['hardware']['eo_camera']
-        self.swath = self.eo_camera['swath']
+        self.zoom = self.eo_camera['zoom']
         self.resolution = self.eo_camera['resolution']
         
     def get_telemetry(self):
@@ -95,10 +95,10 @@ class PayloadModule:
                 lon = self.longitude
                 alt = self.altitude
                 res = self.resolution
-                swath = self.swath
-                self.logger.info(f"Starting image capture at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, Swath: {swath}")
+                zoom = self.zoom
+                self.logger.info(f"Starting image capture at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
                 if self.state == 2:  # Only if powered ON
-                    self._capture_image(met_sec, epoch, current_time, lat, lon, alt, res, swath)
+                    self._capture_image(met_sec, epoch, current_time, lat, lon, alt, res, zoom)
                 
             else:
                 self.logger.warning(f"Unknown PAYLOAD command ID: {command_id}")
@@ -133,20 +133,20 @@ class PayloadModule:
             lon = self.longitude
             alt = self.altitude
             res = self.resolution
-            swath = self.swath
-            self.logger.info(f"Starting image capture at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, Swath: {swath}")
+            zoom = self.zoom
+            self.logger.info(f"Starting image capture at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
             if self.state == 2:  # Only if powered ON
-                self._capture_image(met_sec, epoch, current_time, lat, lon, alt, res, swath)
+                self._capture_image(met_sec, epoch, current_time, lat, lon, alt, res, zoom)
             
         else:
             self.logger.warning(f"Unknown PAYLOAD command ID: {command_id}")
                 
-    def _capture_image(self, met_sec, epoch, current_time, lat, lon, alt, res, swath):
+    def _capture_image(self, met_sec, epoch, current_time, lat, lon, alt, res, zoom):
         """Capture an image at the specified MET seconds"""
         self.logger.debug(f"Current time: {current_time}")
         self.logger.debug(f"Epoch: {epoch}")
         self.logger.debug(f"Current MET seconds: {(current_time - epoch).total_seconds()}")
-        self.logger.debug(f"Capturing image at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, Swath: {swath}")
+        self.logger.debug(f"Capturing image at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
         
         wait_time = met_sec - (current_time - epoch).total_seconds()
         while wait_time > 0:
@@ -158,7 +158,7 @@ class PayloadModule:
         try:
             self.status = 1  # Set to CAPTURING
 
-            zoom = 12  # google api specific value that is roughly the config.py swath width at equator
+            zoom = self.zoom  # google api specific value that is roughly the config.py zoom at equator
             
             # Build API request
             params = {
