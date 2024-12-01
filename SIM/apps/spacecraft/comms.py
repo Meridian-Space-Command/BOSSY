@@ -135,6 +135,7 @@ class CommsModule:
     def stop(self):
         """Stop the communications module"""
         self.running = False
+        self.mode = 0
         self.tc_socket.close()
         self.tm_socket.close()
         self.logger.info("CommsModule stopped")
