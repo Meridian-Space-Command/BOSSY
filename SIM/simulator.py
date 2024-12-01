@@ -118,6 +118,7 @@ class Simulator:
                 
                 # Debug logging after update
                 self.logger.debug(f"After update - Sim time: {Simulator._sim_time}")
+                self.logger.debug(f"MET: {int((self._sim_time - self.mission_start_time).total_seconds())} s")
                 
                 try:
                     # Update subsystems in order
