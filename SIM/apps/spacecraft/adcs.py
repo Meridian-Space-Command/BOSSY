@@ -58,10 +58,6 @@ class ADCSModule:
         self.pointing_duration = hw_config['pointing_requirements']['stability_duration']
         self.pointing_start_time = None
         
-        # Get actuator limits
-        self.max_magnetic_moment = hw_config['magnetorquers']['x']['max_moment']  # Assuming symmetric
-        self.max_wheel_torque = hw_config['reaction_wheels']['x']['max_torque']   # Assuming symmetric
-        
         self.time_step = SIM_CONFIG['time_step']
         
         self.logger.info("ADCS Module initialized")
