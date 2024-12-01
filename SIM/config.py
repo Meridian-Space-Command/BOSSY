@@ -108,28 +108,6 @@ SPACECRAFT_CONFIG = {
         },
         'hardware': {
             'adcs': {
-                'magnetorquers': {
-                    'x': {'max_moment': 0.2},     # A⋅m² (magnetic dipole moment)
-                    'y': {'max_moment': 0.2},
-                    'z': {'max_moment': 0.2}
-                },
-                'reaction_wheels': {
-                    'x': {
-                        'max_torque': 0.001,      # N⋅m
-                        'max_momentum': 0.05,      # N⋅m⋅s
-                        'moment_of_inertia': 0.001 # kg⋅m²
-                    },
-                    'y': {
-                        'max_torque': 0.001,
-                        'max_momentum': 0.05,
-                        'moment_of_inertia': 0.001
-                    },
-                    'z': {
-                        'max_torque': 0.001,
-                        'max_momentum': 0.05,
-                        'moment_of_inertia': 0.001
-                    }
-                },
                 'pointing_requirements': {
                     'accuracy_threshold': 2.0,     # degrees, threshold between SLEWING and POINTING
                     'stability_duration': 0,    # seconds, duration pointing must be maintained
@@ -165,7 +143,7 @@ UNIVERSE_CONFIG = {
     },
     'space_weather': {
         'F107': 150.0,              # Solar F10.7 radio flux (solar radio flux at 10.7 cm wavelength)
-        'F107A': 150.0,             # 81-day average of F10.7
+        'F107A': 150.0,             # 81-day average of F10.7 (solar radio flux at 10.7 cm wavelength)
         'magnetic_index': 4.0,      # Geomagnetic AP index (0-400, measure of magnetic field disturbance)
         'solar_cycle_phase': 0.5    # 0-1, current phase of solar cycle
     },
