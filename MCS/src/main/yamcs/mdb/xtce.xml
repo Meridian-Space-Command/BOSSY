@@ -951,19 +951,13 @@
 					<BaseContainer containerRef="CommandPacket" />
 				</CommandContainer>			
 			</MetaCommand>			
-			<MetaCommand name="PAYLOAD_IMAGE_CAPTURE" shortDescription="Captures an image">
+			<MetaCommand name="PAYLOAD_IMAGE_CAPTURE" shortDescription="Captures an image (NOW)">
 				<BaseMetaCommand metaCommandRef="CommandPacket">
 					<ArgumentAssignmentList>
 						<ArgumentAssignment argumentName="Command_ID" argumentValue="53" />
 					</ArgumentAssignmentList>
 				</BaseMetaCommand>		
-				<ArgumentList>
-					<Argument argumentTypeRef="met_sec" name="met_sec" shortDescription="Desired MET seconds to start image capture" />
-				</ArgumentList>  
 				<CommandContainer name="PAYLOAD_IMAGE_CAPTURE">
-					<EntryList>
-						<ArgumentRefEntry argumentRef="met_sec" />
-					</EntryList>
 					<BaseContainer containerRef="CommandPacket"/>
 				</CommandContainer>	
 			</MetaCommand>				

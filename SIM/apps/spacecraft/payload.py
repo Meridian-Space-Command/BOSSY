@@ -88,17 +88,15 @@ class PayloadModule:
                 self.heater_setpoint = setpoint
                 
             elif command_id == 53:   # PAYLOAD_IMAGE_CAPTURE
-                met_sec = struct.unpack(">I", command_data)[0]
-                epoch = self.mission_epoch
                 current_time = self.current_time
                 lat = self.latitude
                 lon = self.longitude
                 alt = self.altitude
                 res = self.resolution
                 zoom = self.zoom
-                self.logger.info(f"Starting image capture at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
+                self.logger.info(f"Starting image capture with parameters, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
                 if self.state == 2:  # Only if powered ON
-                    self._capture_image(met_sec, epoch, current_time, lat, lon, alt, res, zoom)
+                    self._capture_image(current_time, lat, lon, alt, res, zoom)
                 
             else:
                 self.logger.warning(f"Unknown PAYLOAD command ID: {command_id}")
@@ -126,33 +124,26 @@ class PayloadModule:
             self.heater_setpoint = setpoint
             
         elif command_id == 53:   # PAYLOAD_IMAGE_CAPTURE
-            met_sec = int(command_data)
-            epoch = self.mission_epoch
             current_time = self.current_time
             lat = self.latitude
             lon = self.longitude
             alt = self.altitude
             res = self.resolution
             zoom = self.zoom
-            self.logger.info(f"Starting image capture at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
+            self.logger.info(f"Starting image capture with parameters, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
             if self.state == 2:  # Only if powered ON
-                self._capture_image(met_sec, epoch, current_time, lat, lon, alt, res, zoom)
+                self._capture_image(current_time, lat, lon, alt, res, zoom)
             
         else:
             self.logger.warning(f"Unknown PAYLOAD command ID: {command_id}")
                 
-    def _capture_image(self, met_sec, epoch, current_time, lat, lon, alt, res, zoom):
+    def _capture_image(self, current_time, lat, lon, alt, res, zoom):
         """Capture an image at the specified MET seconds"""
+        mission_start_time = SIM_CONFIG['mission_start_time']
+        met_sec = int((current_time - mission_start_time).total_seconds())
         self.logger.debug(f"Current time: {current_time}")
-        self.logger.debug(f"Epoch: {epoch}")
-        self.logger.debug(f"Current MET seconds: {(current_time - epoch).total_seconds()}")
-        self.logger.debug(f"Capturing image at MET seconds: {met_sec}, Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
-        
-        wait_time = met_sec - (current_time - epoch).total_seconds()
-        while wait_time > 0:
-            self.logger.debug(f"Waiting for {wait_time} seconds before capturing image")
-            time.sleep(1)
-            wait_time -= 1
+        self.logger.debug(f"Current MET seconds: {met_sec}")
+        self.logger.debug(f"Capturing image with parameters: Lat: {lat}, Lon: {lon}, Alt: {alt}, Res: {res}, zoom: {zoom}")
         
         self.logger.debug("Capturing image")
         try:
