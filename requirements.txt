@@ -35,6 +35,10 @@ black>=21.5b2  # For code formatting
 requests
 yamcs-client
 
+# Web
+flask>=2.0.0
+flask-cors>=3.0.0 
+
 # Other dependencies are part of Python standard library:
 # - socket
 # - threading

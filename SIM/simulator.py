@@ -17,6 +17,8 @@ from apps.universe.environment import Environment
 from config import SIM_CONFIG, SPACECRAFT_CONFIG
 from logger import SimLogger
 from astropy import units as u
+from apps.visualization.web_server import start_server, update_state
+from sim_time import SimTime  # Add this import
 
 class Simulator:
     _sim_time = SIM_CONFIG['mission_start_time']
@@ -99,6 +101,9 @@ class Simulator:
         self.logger.info(f"Time step: {self.time_step}s")
         self.logger.info("Press Ctrl+C to stop the simulator")
 
+        # Start web visualization server
+        start_server()
+
     def calculate_total_power_draw(self):
         """Calculate total power draw from all subsystems"""
         power_draws = {
@@ -121,8 +126,8 @@ class Simulator:
         try:
             while self.running:
                 # Update simulation time
-                Simulator._sim_time += timedelta(seconds=self.time_step)
-                self.current_time = Simulator._sim_time
+                self.current_time += timedelta(seconds=self.time_step)
+                SimTime.set_time(self.current_time)  # Update shared time
                 
                 # Update logger's time
                 SimLogger.set_time(self.current_time)
@@ -150,6 +155,13 @@ class Simulator:
                     # Update OBC uptime with proper time unit
                     self.obc.set_uptime(self.obc.get_uptime() + self.time_step * u.s)
                     
+                    # Update web visualization
+                    update_state(
+                        self.adcs.latitude,
+                        self.adcs.longitude,
+                        orbit_state['velocity']
+                    )
+                    
                 except SimulationEndedException as e:
                     self.logger.info(f"Simulation ended: {str(e)}")
                     self.stop()
@@ -169,10 +181,11 @@ class Simulator:
         sys.exit(0)
 
     def stop(self):
-        """Clean shutdown of simulator"""
+        """Stop all simulator components"""
         self.running = False
         self.logger.info("Stopping COMMS module...")
         self.comms.stop()
+        self.logger.info("CommsModule stopped")
         self.logger.info("Simulator stopped")
 
 if __name__ == "__main__":

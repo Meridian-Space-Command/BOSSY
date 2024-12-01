@@ -158,6 +158,14 @@ class OrbitPropagator:
         itrs = gcrs.transform_to(ITRS(obstime=self.last_update_time))
         location = itrs.represent_as(SphericalRepresentation)
         
+        # Get lat/lon with proper wrapping
+        lat = location.lat.to(u.deg).value
+        lon = location.lon.wrap_at(180 * u.deg).to(u.deg).value  # Wrap longitude at ±180°
+
+        # For sun-synchronous orbit (i > 90°), invert latitude
+        if self._current_state.inc.to(u.deg).value > 90:
+            lat = abs(lat)  # For retrograde orbits, use positive latitude in northern hemisphere
+        
         # Get current orbital elements
         alt = (np.linalg.norm(pos) - self.earth.R).to(u.km).value  # Height above Earth's surface
         
@@ -178,8 +186,8 @@ class OrbitPropagator:
             'nadir_vector': -pos_unit.value,  # Unit vector to Earth center
             'velocity_vector': vel_unit.value,  # Unit vector in velocity direction
             'h_vector': h_vector.value,  # Orbital angular momentum vector
-            'lat': location.lat.to(u.deg).value,
-            'lon': location.lon.to(u.deg).value,
+            'lat': lat,
+            'lon': lon,
             'alt': alt,  # Height above Earth's surface in km
             'true_anomaly': self._current_state.nu.to(u.deg).value % 360,
             'eclipse': self.eclipse_status,
