@@ -450,9 +450,9 @@ class ADCSModule:
         # Natural dynamics only - small random disturbances
         q_current = self.quaternion  # Current attitude
         rpy_current = list(self._quaternion_to_euler(q_current))  # Current Euler angles
-        applied_random_rate_x = np.random.uniform(0.001, 0.1)  # Add some randomness 
-        applied_random_rate_y = np.random.uniform(0.001, 0.1)  # Add some randomness 
-        applied_random_rate_z = np.random.uniform(0.001, 0.1)  # Add some randomness 
+        applied_random_rate_x = np.random.uniform(0.01, 0.1)  # Add some randomness 
+        applied_random_rate_y = np.random.uniform(0.01, 0.1)  # Add some randomness 
+        applied_random_rate_z = np.random.uniform(0.01, 0.1)  # Add some randomness 
         rpy_current[0] = rpy_current[0] + (applied_random_rate_x * self.time_step)
         rpy_current[1] = rpy_current[1] + (applied_random_rate_y * self.time_step)
         rpy_current[2] = rpy_current[2] + (applied_random_rate_z * self.time_step)
