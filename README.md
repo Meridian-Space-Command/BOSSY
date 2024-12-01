@@ -67,7 +67,6 @@ ATS = Absolute Time Sequence
 789004910,14,None, # Reset OBC
 789004930,33,2, # Set ADCS mode to SUNPOINTING
 ```
-For the comment, don't forget to have the `,` before the `#` character.
 
 This means:
 - cmd_1:
@@ -78,6 +77,10 @@ This means:
     - Timestamp = 789004930 (seconds since epoch (e.g. 2000-01-01 00:00:00) = 2025-01-01 00:00:30)
     - command_id = 33 (ADCS_SET_MODE) 
     - command_data = 2 (SUNPOINTING)
+
+Tips:
+- For the comment, don't forget to have the `,` before the `#` character.
+- To discover the command_id of a command, you can go to yamcs-web, then the Mission Database, then the Commands section, and select the desired command. It will show the command_id and the arguments with more description.
 
 ### Upload the ATS
 
