@@ -124,6 +124,9 @@ class Simulator:
                 Simulator._sim_time += timedelta(seconds=self.time_step)
                 self.current_time = Simulator._sim_time
                 
+                # Update logger's time
+                SimLogger.set_time(self.current_time)
+                
                 try:
                     # First propagate orbit to get new state
                     orbit_state = self.orbit_propagator.propagate(self.current_time)

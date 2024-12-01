@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 import warnings
 import urllib3
+from config import SIM_CONFIG  # Import SIM_CONFIG
 
 def setup_logging():
     """Configure warnings and logging before any other imports"""
@@ -18,6 +19,12 @@ def setup_logging():
 
 class SimLogger:
     _logger = None
+    _current_time = SIM_CONFIG['mission_start_time']  # Initialize with mission start
+    
+    @classmethod
+    def set_time(cls, current_time):
+        """Update the current simulation time"""
+        cls._current_time = current_time
     
     @classmethod
     def get_logger(cls, name="SimLogger"):
@@ -39,8 +46,17 @@ class SimLogger:
             ch = logging.StreamHandler()
             ch.setLevel(logging.INFO)
             
-            # Create formatter
-            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            # Create custom formatter that includes simulation time
+            class CustomFormatter(logging.Formatter):
+                def format(self, record):
+                    # Use simulation time instead of wall clock
+                    sim_time = SimLogger._current_time
+                    met_sec = int((sim_time - SIM_CONFIG['mission_start_time']).total_seconds())
+                    # Don't include timestamp in record.msg since it's already in the format string
+                    record.msg = f"{record.msg}"
+                    return f"[UTC {sim_time.strftime('%Y-%m-%d %H:%M:%S')}, MET {met_sec}s] {super().format(record)}"
+            
+            formatter = CustomFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             fh.setFormatter(formatter)
             ch.setFormatter(formatter)
             

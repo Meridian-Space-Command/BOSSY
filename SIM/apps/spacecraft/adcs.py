@@ -11,6 +11,9 @@ from logger import SimLogger
 import struct
 
 class ADCSModule:
+    # ADCS modes
+    MODES = ['OFF', 'LOCK', 'SUNPOINTING', 'NADIR', 'DOWNLOAD', 'EOL']
+    
     def __init__(self, initial_state=None, orbit_propagator=None):
         self.logger = SimLogger.get_logger("ADCSModule")
         
@@ -279,6 +282,9 @@ class ADCSModule:
                 if error_angle > self.pointing_accuracy * 2.0:
                     self.status = 1  # SLEWING
                 else:
+                    if self.status != 2:  # Only log when first achieving pointing
+                        met_sec = int((self.last_update_time - SIM_CONFIG['mission_start_time']).total_seconds())
+                        self.logger.info(f"Pointing achieved in mode {self.MODES[self.mode]}")
                     self.status = 2  # POINTING ACHIEVED
                     # Add small random noise to rates when pointing
                     rand_noise = np.random.uniform(-0.001, 0.001, 3)
@@ -326,7 +332,7 @@ class ADCSModule:
             
             # Calculate error rotation
             r_error = r_current.inv() * r_desired
-            error_angle = r_error.magnitude(degrees=True)
+            error_angle = np.degrees(r_error.magnitude())  # Convert to degrees after getting magnitude
             
             # Calculate slew fraction based on nominal rate
             max_angle = self.nominal_slew_rate * self.time_step
@@ -421,7 +427,7 @@ class ADCSModule:
             r_desired = Rotation.from_quat(q_desired)
             # Calculate relative rotation and convert to angle
             r_error = r_current.inv() * r_desired
-            return abs(r_error.magnitude(degrees=True))
+            return np.degrees(abs(r_error.magnitude()))  # Convert to degrees after getting magnitude
         except Exception as e:
             self.logger.error(f"Error calculating error angle: {str(e)}")
             return float('inf')  # Return large error on failure

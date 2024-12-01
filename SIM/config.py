@@ -127,28 +127,7 @@ SPACECRAFT_CONFIG = {
             },
             'eo_camera': {  # EO Camera Configuration
                 'resolution': 4096,  # pixels
-                'zoom': 4,  # from 1 to 16 zoom m/px
-                # zoom scale at the equator
-                # zoom  m/px
-                # 19  0.19
-                # 18  0.37
-                # 17  0.74
-                # 16  1.48
-                # 15  3
-                # 14  6
-                # 13  12
-                # 12  24
-                # 11  48
-                # 10  95
-                # 9  190
-                # 8  378
-                # 7  752
-                # 6  1,485
-                # 5  2,909
-                # 4  5,540
-                # 3  10,064
-                # 2  16,355
-                # 1  21,282
+                'meters_per_pixel': 500,  # Ground resolution in meters/pixel
             }
         }
     }   
