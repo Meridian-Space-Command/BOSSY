@@ -160,8 +160,12 @@ class PowerModule:
             # Simple power balance calculation
             if self.total_power_generation > self.total_power_draw:
                 self.power_balance = 1  # POSITIVE
-                self.battery_voltage = min(self.battery_voltage + 0.002, 8.2)
-                self.battery_current = min(self.battery_current + 0.005, 0.1)
+                if self.mode == 1 and self.status == 2:
+                    self.battery_voltage = min(self.battery_voltage + 0.0005, 8.2)
+                    self.battery_current = min(self.battery_current + 0.005, 0.1)
+                else:
+                    self.battery_voltage = min(self.battery_voltage + 0.0001, 8.2)
+                    self.battery_current = min(self.battery_current + 0.005, 0.1)
             elif self.total_power_generation < self.total_power_draw:
                 self.power_balance = 2  # NEGATIVE
                 self.battery_voltage = max(self.battery_voltage - 0.0003, 6.5)
