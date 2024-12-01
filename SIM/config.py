@@ -1,7 +1,7 @@
 from datetime import datetime
 
 LOGGER_CONFIG = {
-    'level': 'DEBUG',  # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+    'level': 'INFO',  # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 }
 
 # Simulator Configuration
