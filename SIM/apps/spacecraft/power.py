@@ -3,7 +3,7 @@ from config import SPACECRAFT_CONFIG
 import numpy as np
 
 class PowerModule:
-    def __init__(self, logger, orbit_propagator, environment, comms=None, payload=None):
+    def __init__(self, logger, orbit_propagator, environment, comms=None, payload=None, datastore=None):
         """Initialize power subsystem
         
         Args:
@@ -20,7 +20,7 @@ class PowerModule:
         # Store optional module references
         self.comms = comms
         self.payload = payload
-        
+        self.datastore = datastore
         # Initialize POWER state from config
         config = SPACECRAFT_CONFIG['spacecraft']['initial_state']['power']
         self.state = config['state']
@@ -161,11 +161,11 @@ class PowerModule:
             if self.total_power_generation > self.total_power_draw:
                 self.power_balance = 1  # POSITIVE
                 self.battery_voltage = min(self.battery_voltage + 0.002, 8.2)
-                self.battery_current = min(self.battery_current + 0.007, 0.1)
+                self.battery_current = min(self.battery_current + 0.005, 0.1)
             elif self.total_power_generation < self.total_power_draw:
                 self.power_balance = 2  # NEGATIVE
-                self.battery_voltage = max(self.battery_voltage - 0.0005, 7.6)
-                self.battery_current = max(self.battery_current - 0.007, -0.1)
+                self.battery_voltage = max(self.battery_voltage - 0.0003, 6.5)
+                self.battery_current = max(self.battery_current - 0.004, -0.1)
             else:
                 self.power_balance = 0  # BALANCED
 
@@ -174,6 +174,9 @@ class PowerModule:
 
             if hasattr(self, 'payload') and self.payload.status == 1:
                 self.battery_voltage = self.battery_voltage - 0.1
+
+            if hasattr(self, 'datastore') and self.datastore.mode == 1:
+                self.battery_voltage = self.battery_voltage - 0.2
             
         except Exception as e:
             self.logger.error(f"Error updating power state: {str(e)}")

@@ -37,17 +37,18 @@ class Simulator:
         self.adcs = ADCSModule()
         self.comms = CommsModule()
         self.payload = PayloadModule(self.adcs)  # Payload needs ADCS for pointing
+        self.datastore = DatastoreModule()
         
-        # Initialize power module with dependencies
+        # Initialize power module with all dependencies
         self.power = PowerModule(
             logger=self.logger,
             orbit_propagator=self.orbit_propagator,
             environment=self.environment,
             comms=self.comms,
-            payload=self.payload
+            payload=self.payload,
+            datastore=self.datastore
         )
 
-        self.datastore = DatastoreModule()
         self.obc = OBCModule()
         self.cdh = CDHModule()
         
