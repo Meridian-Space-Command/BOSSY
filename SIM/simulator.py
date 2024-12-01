@@ -72,7 +72,6 @@ class Simulator:
         # Get simulation configuration
         self.mission_start_time = SIM_CONFIG['mission_start_time']
         self.time_step = SIM_CONFIG['time_step']
-        self.time_factor = SIM_CONFIG['time_factor']
         
         # Initialize simulation time
         self.current_time = self.mission_start_time
@@ -86,7 +85,7 @@ class Simulator:
         signal.signal(signal.SIGTERM, self.signal_handler)
         
         self.logger.info(f"Simulator started - Mission start time: {self.mission_start_time}")
-        self.logger.info(f"Time step: {self.time_step}s, Time factor: {self.time_factor}x")
+        self.logger.info(f"Time step: {self.time_step}s")
         self.logger.info("Press Ctrl+C to stop the simulator")
 
     def calculate_total_power_draw(self):
@@ -113,8 +112,8 @@ class Simulator:
                 # Debug logging for time updates
                 self.logger.debug(f"Before update - Sim time: {Simulator._sim_time}")
                 
-                # Update simulation time - use time_factor here
-                Simulator._sim_time += timedelta(seconds=self.time_step * self.time_factor)
+                # Update simulation time
+                Simulator._sim_time += timedelta(seconds=self.time_step)
                 self.current_time = Simulator._sim_time
                 
                 # Debug logging after update
@@ -147,8 +146,8 @@ class Simulator:
                     self.stop()
                     break
                 
-                # Sleep for time_step adjusted by time_factor
-                time.sleep(self.time_step / self.time_factor)
+                # Sleep for time_step
+                time.sleep(self.time_step)
                 
         except Exception as e:
             self.logger.error(f"Error in simulation loop: {str(e)}")
