@@ -1,5 +1,8 @@
+from astropy import units as u
 import numpy as np
-import logging
+from astropy.time import Time
+from astropy.coordinates import get_sun
+from astropy.coordinates.matrix_utilities import rotation_matrix
 
 class Environment:
     """Environmental models for space simulation"""
@@ -7,46 +10,60 @@ class Environment:
     @staticmethod
     def atmospheric_density(altitude):
         """Simple exponential atmospheric model
-        Input: altitude in km
-        Output: density in kg/m³
+        
+        Args:
+            altitude: Altitude in km
+            
+        Returns:
+            float: Density in kg/m³
         """
-        h0 = 7.249  # Scale height [km]
-        rho0 = 1.225 # Sea level density [kg/m³]
-        return rho0 * np.exp(-altitude / h0)
+        h0 = 7.249 * u.km  # Scale height
+        rho0 = 1.225 * u.kg / u.m**3  # Sea level density
+        return (rho0 * np.exp(-altitude * u.km / h0)).to(u.kg / u.m**3).value
     
-    def solar_illumination(self,spacecraft_pos, sun_pos, quaternion):
-        """Calculate solar panel illumination angles
-        Inputs: 
-        - spacecraft_pos: [x,y,z] in km
-        - sun_pos: [x,y,z] in km
-        - quaternion: [q1,q2,q3,q4] spacecraft attitude
-        Returns: Dictionary of panel illumination angles in degrees
-        """
-        # Calculate sun vector in ECI
-        sun_vec = sun_pos - spacecraft_pos
-        sun_vec = sun_vec / np.linalg.norm(sun_vec)
+    def solar_illumination(self, orbit_state, sun, quaternion):
+        """Calculate solar panel illumination angles using spacecraft state"""
+        # Get spacecraft position
+        r_sc = orbit_state['position'] * u.km
+        
+        # Get Sun position using astropy
+        sun_gcrs = get_sun(Time(orbit_state['time']))
+        r_sun = np.array([
+            sun_gcrs.cartesian.x.to(u.km).value,
+            sun_gcrs.cartesian.y.to(u.km).value,
+            sun_gcrs.cartesian.z.to(u.km).value
+        ]) * u.km
+        
+        # Calculate vectors
+        sun_to_sc = r_sc - r_sun  # Vector from Sun to spacecraft
+        sun_to_sc = sun_to_sc / np.linalg.norm(sun_to_sc)  # Normalize
         
         # Convert quaternion to rotation matrix
         q = quaternion
-        R = np.array([
-            [1-2*(q[1]**2 + q[2]**2), 2*(q[0]*q[1] - q[2]*q[3]), 2*(q[0]*q[2] + q[1]*q[3])],
-            [2*(q[0]*q[1] + q[2]*q[3]), 1-2*(q[0]**2 + q[2]**2), 2*(q[1]*q[2] - q[0]*q[3])],
-            [2*(q[0]*q[2] - q[1]*q[3]), 2*(q[1]*q[2] + q[0]*q[3]), 1-2*(q[0]**2 + q[1]**2)]
-        ])
+        R = self._quaternion_to_dcm(q)
         
         # Transform sun vector to body frame
-        sun_body = R.T @ sun_vec
+        sun_body = R.T @ sun_to_sc.value
         
-        # Calculate angles for each panel
-        # cos(angle) = dot product with panel normal
-        panels = {
-            'pX': np.degrees(np.arccos(np.clip(sun_body[0], -1, 1))),
-            'nX': np.degrees(np.arccos(np.clip(-sun_body[0], -1, 1))),
-            'pY': np.degrees(np.arccos(np.clip(sun_body[1], -1, 1))),
-            'nY': np.degrees(np.arccos(np.clip(-sun_body[1], -1, 1)))
-        }
+        # Calculate angles
+        angles = {}
+        for axis, vec in [('pX', [1,0,0]), ('nX', [-1,0,0]), 
+                         ('pY', [0,1,0]), ('nY', [0,-1,0])]:
+            dot_product = np.dot(sun_body, vec)
+            angle = np.arccos(np.clip(dot_product, -1, 1))
+            angles[axis] = float(np.degrees(angle))  # Convert to float degrees
+            
+        return angles
 
-        logger = logging.getLogger(__name__)
-        logger.debug(f"Panel angles: {panels}")
+    def _quaternion_to_dcm(self, q):
+        """Convert quaternion to Direction Cosine Matrix using astropy
         
-        return panels
+        Args:
+            q (np.array): Quaternion in [x,y,z,w] format
+        Returns:
+            np.array: 3x3 rotation matrix
+        """
+        x, y, z, w = q
+        angle = 2 * np.arccos(w)
+        axis = np.array([x, y, z]) / np.sin(angle/2) if angle != 0 else np.array([0, 0, 1])
+        return rotation_matrix(angle, axis)

@@ -1,67 +1,54 @@
 import logging
-import sys
-from pathlib import Path
+import os
 from datetime import datetime
-from config import LOGGER_CONFIG
+import warnings
+import urllib3
 
-# Logger Configuration
-LOG_LEVEL = LOGGER_CONFIG['level']      # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+def setup_logging():
+    """Configure warnings and logging before any other imports"""
+    # Configure warnings
+    warnings.filterwarnings('ignore', category=urllib3.exceptions.NotOpenSSLWarning)
+    warnings.filterwarnings('ignore', category=DeprecationWarning)
+    warnings.filterwarnings('ignore', category=FutureWarning)
+    
+    # Suppress specific module logs
+    logging.getLogger('numba').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
 
 class SimLogger:
-    _instance = None
-    _initialized = False
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(SimLogger, cls).__new__(cls)
-        return cls._instance
-
-    def __init__(self):
-        # Only initialize once (singleton pattern)
-        if SimLogger._initialized:
-            return
+    _logger = None
+    
+    @classmethod
+    def get_logger(cls, name="SimLogger"):
+        if cls._logger is None:
+            # Create logger
+            cls._logger = logging.getLogger(name)
+            cls._logger.setLevel(logging.INFO)
             
-        # Create logs directory inside SIM directory
-        sim_root = Path(__file__).parent  # SIM directory
-        self.log_dir = sim_root / "logs"
-        self.log_dir.mkdir(exist_ok=True)
-        
-        # Create log filename with timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = self.log_dir / f"sim_{timestamp}.log"
-        
-        # Configure root logger
-        root_logger = logging.getLogger()
-        root_logger.setLevel(getattr(logging, LOG_LEVEL))
-        
-        # Create formatters
-        file_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        console_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-        )
-        
-        # File handler
-        file_handler = logging.FileHandler(log_file)
-        file_handler.setFormatter(file_formatter)
-        root_logger.addHandler(file_handler)
-        
-        # Console handler
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setFormatter(console_formatter)
-        root_logger.addHandler(console_handler)
-        
-        # Log initial information
-        root_logger = logging.getLogger("SimLogger")
-        root_logger.info(f"Log file created at: {log_file}")
-        root_logger.info(f"Logging level set to: {LOG_LEVEL}")
-        
-        SimLogger._initialized = True
-        self.logger = root_logger
-        
-    @staticmethod
-    def get_logger(name):
-        """Get a logger instance with the specified name"""
-        SimLogger()  # Ensure logger is initialized
-        return logging.getLogger(name) 
+            # Create log directory if it doesn't exist
+            if not os.path.exists('logs'):
+                os.makedirs('logs')
+                
+            # Create file handler
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            fh = logging.FileHandler(f'logs/sim_{timestamp}.log')
+            fh.setLevel(logging.INFO)
+            
+            # Create console handler
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.INFO)
+            
+            # Create formatter
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            fh.setFormatter(formatter)
+            ch.setFormatter(formatter)
+            
+            # Add handlers to logger
+            cls._logger.addHandler(fh)
+            cls._logger.addHandler(ch)
+            
+            cls._logger.info(f"Log file created at: {fh.baseFilename}")
+            cls._logger.info(f"Logging level set to: {logging.getLevelName(cls._logger.level)}")
+            
+        return cls._logger

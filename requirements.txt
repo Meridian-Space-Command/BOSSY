@@ -1,8 +1,35 @@
+# Python version 3.9.6 required
+# Do not use Python >= 3.13 as poliastro is not compatible
+
 # Core dependencies
 numpy
 pandas
 scipy
 pillow
+astropy>=5.0.0
+
+# Orbital mechanics
+poliastro>=0.17.0
+
+# Coordinate transformations
+transforms3d>=0.3.1
+
+# Networking
+urllib3>=2.0.0
+
+# Logging and debugging
+numba>=0.56.0
+
+# Time handling
+python-dateutil>=2.8.2
+
+# Optional visualization
+matplotlib>=3.4.0  # For any future plotting needs
+
+# Development tools
+pytest>=6.0.0  # For testing
+pylint>=2.8.0  # For code quality
+black>=21.5b2  # For code formatting
 
 # API/Network
 requests
@@ -18,3 +45,7 @@ yamcs-client
 # - os
 # - sys
 # - logging
+
+# Version constraints
+# Python >= 3.9.6, < 3.13
+# poliastro requires Python < 3.13 

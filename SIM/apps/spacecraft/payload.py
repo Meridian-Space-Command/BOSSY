@@ -62,10 +62,10 @@ class PayloadModule:
         # Update time
         self.current_time = current_time
         
-        # Update position from ADCS
-        self.latitude = adcs.latitude
-        self.longitude = adcs.longitude
-        self.altitude = adcs.altitude
+        # Update position from orbit state (already in correct units)
+        self.latitude = adcs.latitude   # degrees
+        self.longitude = adcs.longitude # degrees
+        self.altitude = adcs.altitude   # km
 
     def process_command(self, command_id, command_data):
         """Process PAYLOAD commands (Command_ID range 50-59)"""

@@ -1,6 +1,16 @@
 import numpy as np
-from .bodies import Earth, Sun, Moon
-from config import ORBIT_CONFIG, SIM_CONFIG
+from config import ORBIT_CONFIG, SIM_CONFIG, UNIVERSE_CONFIG
+from astropy import units as u
+from poliastro.bodies import Earth, Sun, Moon  # Import the classes directly
+from poliastro.twobody import Orbit
+from poliastro.ephem import Ephem
+from poliastro.core.perturbations import J2_perturbation, atmospheric_drag_exponential
+from poliastro.core.propagation import cowell
+from poliastro.core.elements import rv2coe
+from poliastro.util import time_range
+from astropy.time import Time
+from astropy.coordinates import GCRS, ITRS, CartesianRepresentation, SphericalRepresentation, get_sun
+from logger import SimLogger  # Import SimLogger
 
 class SimulationEndedException(Exception):
     """Exception raised when simulation should end"""
@@ -9,136 +19,177 @@ class SimulationEndedException(Exception):
 class OrbitPropagator:
     def __init__(self):
         # Initialize logger
-        import logging
-        self.logger = logging.getLogger('SimLogger')
+        self.logger = SimLogger.get_logger('SimLogger')
         
         # Initialize celestial bodies with mission start time
         self.mission_start = SIM_CONFIG['mission_start_time']
-        self.earth = Earth()
-        self.sun = Sun()
-        self.moon = Moon()
+        self.earth = Earth  # Use the class directly
+        self.sun = Sun
+        self.moon = Moon
+        self._in_eclipse = False
+        self._eclipse_type = None
         
         # Get initial orbital elements from config
         orbit_elements = ORBIT_CONFIG['spacecraft']['elements']
+
+        self.a = orbit_elements['semi_major_axis'] << u.km
+        self.ecc = orbit_elements['eccentricity'] << u.one
+        self.inc = orbit_elements['inclination'] << u.deg
+        self.raan = orbit_elements['raan'] << u.deg
+        self.argp = orbit_elements['arg_perigee'] << u.deg
+        self.nu = orbit_elements['true_anomaly'] << u.deg
+
+        # Initialize orbit with perturbations based on config
+        self.perturbations = []
         
-        # only set semi-major axis if not already set
-        if not hasattr(self, 'a'):
-            self.a = orbit_elements['semi_major_axis'] * 1000  # km to m
-        self.e = orbit_elements['eccentricity']
-        self.i = np.radians(orbit_elements['inclination'])
-        self.raan = np.radians(orbit_elements['raan'])
-        self.arg_p = np.radians(orbit_elements['arg_perigee'])
-        self.true_anomaly = np.radians(orbit_elements['true_anomaly'])
+        if UNIVERSE_CONFIG['perturbations']['J2']:
+            self.perturbations.append(J2_perturbation)
+            self.logger.info("J2 perturbation enabled")
+            
+        if UNIVERSE_CONFIG['perturbations']['atmospheric']:
+            # Get atmosphere parameters from config
+            atmos_config = UNIVERSE_CONFIG['atmosphere']
+            
+            # Convert parameters to proper units
+            R = self.earth.R.to(u.km)
+            C_D = 2.2 * u.dimensionless_unscaled  # Typical drag coefficient
+            A = 0.1 * u.m**2  # Cross sectional area
+            m = 10.0 * u.kg   # Mass
+            H0 = 7.249 * u.km  # Scale height
+            rho0 = 1.225 * u.kg / u.m**3  # Sea level density
+            
+            self.perturbations.append(
+                lambda t0, state, k: atmospheric_drag_exponential(
+                    t0, state, k,
+                    R=R,
+                    C_D=C_D,
+                    A=A,
+                    m=m,
+                    H0=H0,
+                    rho0=rho0
+                )
+            )
+            self.logger.info("Atmospheric drag enabled")
+            
+        if UNIVERSE_CONFIG['perturbations']['radiation']:
+            # Solar radiation pressure could be added here when supported by poliastro
+            self.logger.warning("Solar radiation pressure not yet implemented")
+
+        # Create orbit object with perturbations
+        orb = Orbit.from_classical(
+            self.earth, 
+            self.a, self.ecc, self.inc, 
+            self.raan, self.argp, self.nu,
+            epoch=Time(self.mission_start)
+        )
+
+        # Set propagator method based on perturbations
+        if self.perturbations:
+            self.logger.info(f"Using propagator with {len(self.perturbations)} perturbations")
+        else:
+            self.logger.info("Using Keplerian propagator (no perturbations)")
 
         # Calculate orbital period
-        self.period = 2 * np.pi * np.sqrt(self.a**3 / self.earth.gravitational_parameter())
-        
-        # Calculate initial state
-        self.last_update_time = self.mission_start
-        self.current_state = self._calculate_state(self.mission_start)
-        
-        self.logger.info(f"Orbit initialized at epoch {self.mission_start}")
-        self.logger.info(f"Initial orbital elements: a={self.a/1000:.1f}km, e={self.e:.4f}, i={np.degrees(self.i):.1f}°")
-        
-    def _calculate_state(self, time):
-        """Calculate orbital state at given time"""
-        dt = (time - self.mission_start).total_seconds()
+        self.period = orb.period.to(u.s)
+        self.last_update_time = Time(self.mission_start)
+        self._current_state = orb
 
-        # Calculate mean motion (n)
-        n = np.sqrt(self.earth.gravitational_parameter() / self.a**3)  # More accurate than 2π/period
-        
-        # Convert initial true anomaly to initial mean anomaly
-        E0 = 2 * np.arctan(np.sqrt((1 - self.e)/(1 + self.e)) * np.tan(self.true_anomaly/2))
-        M0 = E0 - self.e * np.sin(E0)
-        
-        # Calculate current mean anomaly
-        M = (M0 + n * dt) % (2 * np.pi)
-        
-        # Solve Kepler's equation using Newton-Raphson method (more accurate)
-        E = M  # Initial guess
-        for _ in range(10):
-            f = E - self.e * np.sin(E) - M
-            f_prime = 1 - self.e * np.cos(E)
-            E_next = E - f/f_prime
-            if abs(E_next - E) < 1e-8:  # Convergence check
-                E = E_next
-                break
-            E = E_next
-        
-        # Calculate true anomaly using a more numerically stable formula
-        nu = 2 * np.arctan2(
-            np.sqrt(1 + self.e) * np.sin(E/2),
-            np.sqrt(1 - self.e) * np.cos(E/2)
+        self.logger.info(f"Orbit initialized at epoch {self.mission_start}")
+        self.logger.info(
+            f"Initial orbital elements: "
+            f"semi_major_axis={self._current_state.a.to(u.km):.1f}, "
+            f"eccentricity={self._current_state.ecc:.4f}, "
+            f"inclination={self._current_state.inc.to(u.deg):.1f}°, "
+            f"raan={self._current_state.raan.to(u.deg):.1f}°, "
+            f"arg_perigee={self._current_state.argp.to(u.deg):.1f}°, "
+            f"true_anomaly={self._current_state.nu.to(u.deg):.1f}°"
         )
+
+    def propagate(self, timestamp):
+        """Propagate orbit and return complete state"""
+        self.last_update_time = Time(timestamp)
         
-        # Calculate radius vector magnitude
-        r = self.a * (1 - self.e * np.cos(E))
+        # Use default propagator without specifying method
+        self._current_state = self._current_state.propagate(self.last_update_time)
         
-        # Calculate position in orbital plane (perifocal coordinates)
-        x = r * np.cos(nu)
-        y = r * np.sin(nu)
-        pos_orbital = np.array([x, y, 0])
+        # Calculate eclipse condition using position vectors
+        # Get spacecraft position
+        r_sc = self._current_state.r
         
-        # Create rotation matrix from perifocal to ECI
-        # Note: Order is important! RAAN -> inclination -> arg of perigee
-        R_W = np.array([
-            [np.cos(self.raan), -np.sin(self.raan), 0],
-            [np.sin(self.raan), np.cos(self.raan), 0],
-            [0, 0, 1]
-        ])
+        # Get Sun position using astropy
+        sun_gcrs = get_sun(self.last_update_time)
+        # Convert from AU to km
+        r_sun = np.array([
+            sun_gcrs.cartesian.x.to(u.km).value,
+            sun_gcrs.cartesian.y.to(u.km).value,
+            sun_gcrs.cartesian.z.to(u.km).value
+        ]) * u.km
         
-        R_i = np.array([
-            [1, 0, 0],
-            [0, np.cos(self.i), -np.sin(self.i)],
-            [0, np.sin(self.i), np.cos(self.i)]
-        ])
+        # Calculate vectors
+        sun_to_sc = r_sc - r_sun  # Vector from Sun to spacecraft
+        r_earth = -r_sc  # Vector from spacecraft to Earth center
         
-        R_w = np.array([
-            [np.cos(self.arg_p), -np.sin(self.arg_p), 0],
-            [np.sin(self.arg_p), np.cos(self.arg_p), 0],
-            [0, 0, 1]
-        ])
+        # Calculate angles and distances for eclipse geometry
+        sun_angle = np.arccos(np.dot(-sun_to_sc, r_earth) / 
+                             (np.linalg.norm(sun_to_sc) * np.linalg.norm(r_earth)))
+        earth_angular_radius = np.arcsin(self.earth.R / np.linalg.norm(r_earth))
+        sun_angular_radius = np.arcsin(self.sun.R / np.linalg.norm(sun_to_sc))
         
-        # Transform to ECI (apply rotations in correct order)
-        R_pef_to_eci = R_W @ R_i @ R_w
-        pos_eci = R_pef_to_eci @ pos_orbital
+        # Determine eclipse condition
+        if sun_angle < earth_angular_radius - sun_angular_radius:
+            self._in_eclipse = True
+            self._eclipse_type = 'umbra'
+        elif sun_angle < earth_angular_radius + sun_angular_radius:
+            self._in_eclipse = True
+            self._eclipse_type = 'penumbra'
+        else:
+            self._in_eclipse = False
+            self._eclipse_type = None
+            
+        self.logger.debug(f"Eclipse state: {self._eclipse_type}")
         
-        # Calculate velocity in orbital plane
-        p = self.a * (1 - self.e**2)  # Semi-latus rectum
-        mu = self.earth.gravitational_parameter()
+        # Get current position and velocity in Earth-centered inertial frame
+        pos = self._current_state.r
+        vel = self._current_state.v
         
-        # Velocity components in perifocal frame
-        v_x = -np.sqrt(mu/p) * np.sin(nu)
-        v_y = np.sqrt(mu/p) * (self.e + np.cos(nu))
-        vel_orbital = np.array([v_x, v_y, 0])
+        # Convert position to lat/lon using astropy coordinates
+        gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
+                    obstime=self.last_update_time)
+        itrs = gcrs.transform_to(ITRS(obstime=self.last_update_time))
+        location = itrs.represent_as(SphericalRepresentation)
         
-        # Transform velocity to ECI using same rotation matrix
-        vel_eci = R_pef_to_eci @ vel_orbital
+        # Get current orbital elements
+        alt = (np.linalg.norm(pos) - self.earth.R).to(u.km).value  # Height above Earth's surface
         
-        # Apply J2 perturbation before calculating lat/lon
-        j2_accel = self._apply_j2_perturbation(pos_eci, dt)
-        pos_eci += 0.5 * j2_accel * dt**2  # Simple numerical integration
+        # Get sun vector in GCRS
+        sun_gcrs = get_sun(Time(timestamp))
+        sun_vector = sun_gcrs.cartesian.xyz.value * u.au.to(u.km)
         
-        # Calculate lat, lon, alt from perturbed position
-        r_mag = np.sqrt(np.sum(pos_eci**2))
-        lat = np.arcsin(pos_eci[2] / r_mag)
-        lon = np.arctan2(pos_eci[1], pos_eci[0])
-        alt = r_mag - self.earth.radius
+        # Calculate additional state vectors
+        pos_unit = pos / np.linalg.norm(pos)
+        vel_unit = vel / np.linalg.norm(vel)
+        h_vector = np.cross(pos.value, vel.value) * u.km**2/u.s  # Angular momentum vector
         
-        # Check eclipse condition
-        sun_pos = self.sun.get_position_at_time(time)
-        in_eclipse = self._check_eclipse(pos_eci, sun_pos)
-        
-        # Create the state dictionary
+        # Create complete state dictionary
         state = {
-            'position': pos_eci / 1000,  # m to km
-            'velocity': vel_eci / 1000,  # m/s to km/s
-            'lat': np.degrees(lat),
-            'lon': np.degrees(lon),
-            'alt': alt / 1000,  # m to km
-            'eclipse': in_eclipse,
-            'time': time,
-            'true_anomaly': np.degrees(nu) % 360  # Added for debugging
+            'position': pos.to(u.km).value,  # [x, y, z] in km
+            'velocity': vel.to(u.km/u.s).value,  # [vx, vy, vz] in km/s
+            'sun_vector': sun_vector,  # Unit vector to Sun
+            'nadir_vector': -pos_unit.value,  # Unit vector to Earth center
+            'velocity_vector': vel_unit.value,  # Unit vector in velocity direction
+            'h_vector': h_vector.value,  # Orbital angular momentum vector
+            'lat': location.lat.to(u.deg).value,
+            'lon': location.lon.to(u.deg).value,
+            'alt': alt,  # Height above Earth's surface in km
+            'true_anomaly': self._current_state.nu.to(u.deg).value % 360,
+            'eclipse': self.eclipse_status,
+            'time': timestamp,
+            # Orbital elements
+            'semi_major_axis': self._current_state.a.to(u.km).value,
+            'eccentricity': self._current_state.ecc.value,
+            'inclination': self._current_state.inc.to(u.deg).value,
+            'raan': self._current_state.raan.to(u.deg).value,
+            'arg_perigee': self._current_state.argp.to(u.deg).value
         }
         
         # Check for reentry
@@ -147,52 +198,124 @@ class OrbitPropagator:
             raise SimulationEndedException("Spacecraft LOST. This is the end my friend.")
         
         return state
-        
-    def propagate(self, current_time):
-        """Update and return orbital state"""
-        if current_time != self.last_update_time:
-            self.current_state = self._calculate_state(current_time)
-            self.last_update_time = current_time
-            self.logger.debug(f"Orbit updated to {current_time}: lat={self.current_state['lat']:.1f}°, " +
-                            f"lon={self.current_state['lon']:.1f}°, alt={self.current_state['alt']:.1f}km")
-        
-        return self.current_state
     
     def burn(self):
         """Initiate deorbit burn by reducing semi-major axis"""
         self.logger.info("Initiating deorbit burn")
         
         # Calculate change in semi-major axis for 4km altitude decrease
-        self.a -= 4000  # 4km in meters
+        delta_a = -4 * u.km
         
-        # Recalculate orbital period with new semi-major axis
-        self.period = 2 * np.pi * np.sqrt(self.a**3 / self.earth.gravitational_parameter())
+        # Create new orbit with updated semi-major axis
+        new_orbit = Orbit.from_classical(
+            self.earth,
+            self._current_state.a + delta_a,
+            self._current_state.ecc,
+            self._current_state.inc,
+            self._current_state.raan,
+            self._current_state.argp,
+            self._current_state.nu,
+            epoch=self.last_update_time
+        )
         
-        self.logger.debug(f"New semi-major axis: {self.a/1000:.1f}km")
+        self._current_state = new_orbit
+        self.period = new_orbit.period
         
-    def _check_eclipse(self, pos_eci, sun_pos):
-        """Simple cylindrical shadow model"""
-        sun_dir = sun_pos / np.linalg.norm(sun_pos)
-        sc_dir = pos_eci / np.linalg.norm(pos_eci)
-        
-        angle = np.arccos(np.dot(sun_dir, sc_dir))
-        return angle > np.pi/2
-        
-    def _apply_j2_perturbation(self, pos_eci, dt):
-        """Apply J2 perturbation to orbital elements
-        Input: position in ECI [m], time step [s]
-        Returns: perturbation accelerations [m/s²]
-        """
-        # J2 perturbation calculation
-        x, y, z = pos_eci
-        r = np.sqrt(np.sum(pos_eci**2))
-        
-        # Pre-calculate terms
-        j2_term = -1.5 * self.earth.J2 * self.earth.gravitational_parameter() * self.earth.radius**2 / r**4
-        
-        # Calculate accelerations
-        ax = j2_term * x/r * (5*z**2/r**2 - 1)
-        ay = j2_term * y/r * (5*z**2/r**2 - 1)
-        az = j2_term * z/r * (5*z**2/r**2 - 3)
-        
-        return np.array([ax, ay, az])
+        self.logger.debug(f"New semi-major axis: {new_orbit.a.to(u.km):.1f}")
+    
+    @property
+    def current_state(self):
+        return self._current_state
+    
+    @current_state.setter
+    def current_state(self, value):
+        self._current_state = value
+    
+    @property
+    def in_eclipse(self):
+        return self._in_eclipse
+    
+    @in_eclipse.setter
+    def in_eclipse(self, value):
+        self._in_eclipse = value
+    
+    @property 
+    def eclipse_status(self):
+        """Return current eclipse status"""
+        return {
+            'in_eclipse': bool(self._in_eclipse),  # Ensure it's a bool
+            'type': self._eclipse_type
+        }
+
+    def _calculate_frames(self, pos, vel, time):
+        """Calculate all reference frames and transformations"""
+        try:
+            # GCRS (Earth-centered inertial) frame
+            gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
+                        obstime=time)
+            
+            # ITRS (Earth-fixed) frame
+            itrs = gcrs.transform_to(ITRS(obstime=time))
+            
+            # TEME (True Equator Mean Equinox) frame for velocity
+            teme_pos = pos.to(u.m)
+            teme_vel = vel.to(u.m/u.s)
+            
+            return {
+                'gcrs': gcrs,
+                'itrs': itrs,
+                'teme_pos': teme_pos,
+                'teme_vel': teme_vel
+            }
+        except Exception as e:
+            self.logger.error(f"Error calculating reference frames: {e}")
+            return None
+
+    def _calculate_eclipse(self, pos, sun_pos):
+        """Calculate eclipse state using astropy"""
+        try:
+            # Get vectors
+            r_sc = pos
+            r_sun = sun_pos.get_gcrs(self.last_update_time).cartesian
+            
+            # Calculate eclipse geometry
+            sun_to_sc = r_sc - r_sun
+            earth_to_sc = r_sc
+            
+            # Use astropy's built-in angle calculation
+            sun_angle = sun_to_sc.separation(earth_to_sc)
+            earth_angle = np.arcsin(self.earth.R / np.linalg.norm(earth_to_sc))
+            sun_angle = np.arcsin(self.sun.R / np.linalg.norm(sun_to_sc))
+            
+            return self._determine_eclipse_state(sun_angle, earth_angle)
+        except Exception as e:
+            self.logger.error(f"Error calculating eclipse: {e}")
+            return {'in_eclipse': False, 'type': None}
+
+    def _calculate_state_vectors(self, pos, vel):
+        """Calculate state vectors in various frames"""
+        try:
+            # Unit vectors
+            pos_unit = pos / np.linalg.norm(pos)
+            vel_unit = vel / np.linalg.norm(vel)
+            
+            # Angular momentum
+            h_vec = np.cross(pos.value, vel.value) * (u.km**2/u.s)
+            h_unit = h_vec / np.linalg.norm(h_vec)
+            
+            # Orbital frame vectors
+            radial = pos_unit
+            normal = h_unit
+            transverse = np.cross(normal.value, radial.value)
+            
+            return {
+                'position_unit': pos_unit.value,
+                'velocity_unit': vel_unit.value,
+                'h_vector': h_vec.value,
+                'radial': radial.value,
+                'normal': normal.value,
+                'transverse': transverse
+            }
+        except Exception as e:
+            self.logger.error(f"Error calculating state vectors: {e}")
+            return None

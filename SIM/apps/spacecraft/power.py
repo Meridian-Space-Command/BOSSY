@@ -2,6 +2,7 @@ import struct
 from config import SPACECRAFT_CONFIG
 import numpy as np
 from .adcs import ADCSModule
+from astropy import units as u
 
 class PowerModule:
     def __init__(self, logger, orbit_propagator, environment, comms=None, payload=None, datastore=None):
@@ -22,13 +23,22 @@ class PowerModule:
         self.comms = comms
         self.payload = payload
         self.datastore = datastore
+        
         # Initialize POWER state from config
         config = SPACECRAFT_CONFIG['spacecraft']['initial_state']['power']
+        comms_config = SPACECRAFT_CONFIG['spacecraft']['initial_state']['comms']
+        
+        # State values
         self.state = config['state']
         self.power_balance = config['power_balance']
         self.temperature = config['temperature']
         self.heater_setpoint = config['heater_setpoint']
         self.power_draw = config['power_draw']
+        self.mode = 0  # Default mode
+        
+        # Power draw values from comms config
+        self.rx_power_draw = comms_config['rx_power_draw']
+        self.txrx_power_draw = comms_config['txrx_power_draw']
         
         # Battery state
         self.battery_voltage = config['battery_voltage']
@@ -45,21 +55,25 @@ class PowerModule:
         
     def get_telemetry(self):
         """Package current POWER state into telemetry format"""
-        self.power_draw = self.power_draw + np.random.uniform(-0.05, 0.05)
+        if self.mode == 0:
+            self.power_draw = (self.rx_power_draw * u.W + np.random.uniform(-0.05, 0.05) * u.W).value
+        else:
+            self.power_draw = (self.txrx_power_draw * u.W + np.random.uniform(-0.05, 0.05) * u.W).value
+
         values = [
-            np.uint8(self.state),                       # SubsystemState_Type (8 bits)
-            np.int8(self.temperature),                  # int8_degC (8 bits)
-            np.int8(self.heater_setpoint),              # int8_degC (8 bits)
-            np.float32(self.power_draw),                # float_W (32 bits)
-            np.float32(self.battery_voltage),           # float_V (32 bits)
-            np.float32(self.battery_current),           # float_A (32 bits)
-            np.uint8(self.power_balance),               # PowerBalance_Type (8 bits)
-            np.float32(self.total_power_draw),          # float_W (32 bits)
-            np.float32(self.total_power_generation),    # float_W (32 bits)
-            np.float32(self.solar_panel_generation_pX), # float_W (32 bits)
-            np.float32(self.solar_panel_generation_nX), # float_W (32 bits)
-            np.float32(self.solar_panel_generation_pY), # float_W (32 bits)
-            np.float32(self.solar_panel_generation_nY)  # float_W (32 bits)
+            np.uint8(self.state),
+            np.int8(self.temperature),
+            np.int8(self.heater_setpoint),
+            np.float32(self.power_draw),
+            np.float32(self.battery_voltage),
+            np.float32(self.battery_current),
+            np.uint8(self.power_balance),
+            np.float32(self.total_power_draw),
+            np.float32(self.total_power_generation),
+            np.float32(self.solar_panel_generation_pX),
+            np.float32(self.solar_panel_generation_nX),
+            np.float32(self.solar_panel_generation_pY),
+            np.float32(self.solar_panel_generation_nY)
         ]
         
         return struct.pack(">BbbfffBffffff", *values)
@@ -115,40 +129,56 @@ class PowerModule:
     def update(self, current_time, adcs_module):
         """Update power state based on current conditions"""
         try:
-            # Get hardware config
+            # Get hardware config with units
             power_config = SPACECRAFT_CONFIG['spacecraft']['hardware']['power']
+            solar_flux = power_config['solar_flux'] * u.W / u.m**2
+            solar_efficiency = power_config['solar_efficiency'] * u.dimensionless_unscaled
             
             # Get orbit state
             orbit_state = self.orbit_propagator.propagate(current_time)
-
-            # If in eclipse, no solar generation
-            if orbit_state['eclipse']:
-                self.solar_panel_generation = {
-                    'pX': 0.0, 'nX': 0.0, 'pY': 0.0, 'nY': 0.0
-                }
-            else:
-                # Get sun position and calculate panel angles using ADCS quaternion
-                sun_pos = self.orbit_propagator.sun.get_position_at_time(current_time)
+            self.logger.debug(f"Orbit state: {orbit_state}")
+            
+            # Calculate power generation
+            total_generation = 0.0 * u.W  # Initialize with unit
+            
+            # Check eclipse status
+            eclipse_status = orbit_state['eclipse']
+            self.logger.debug(f"Eclipse status: {eclipse_status}")
+            
+            if not eclipse_status['in_eclipse']:
+                # Get panel angles from environment
                 panel_angles = self.environment.solar_illumination(
-                    orbit_state['position'],
-                    sun_pos,
+                    orbit_state,
+                    None,
                     adcs_module.quaternion
                 )
                 
-                # Calculate generation for each panel
+                self.logger.debug(f"Panel angles: {panel_angles}")
+                
                 for panel in ['pX', 'nX', 'pY', 'nY']:
-                    angle = panel_angles[panel]
-                    if angle < 90:  # Only generate power if angle is less than 90 degrees
-                        angle_factor = np.cos(np.radians(angle))
-                        power = (power_config['solar_flux'] * 
-                                power_config['solar_efficiency'] * 
-                                power_config['solar_panels'][panel]['area'] * 
-                                angle_factor)
-                    else:
-                        power = 0.0
-                        
-                    self.solar_panel_generation[panel] = power
+                    area = power_config['solar_panels'][panel]['area'] * u.m**2
+                    angle = float(panel_angles[panel])  # Ensure it's a float
                     
+                    self.logger.debug(f"Panel {panel}: angle={angle} degrees, area={area}")
+                    
+                    if angle < 90.0:  # Compare floats
+                        angle_rad = np.radians(angle)
+                        angle_factor = np.cos(angle_rad)
+                        power = (solar_flux * solar_efficiency * area * angle_factor)
+                        total_generation += power
+                        self.solar_panel_generation[panel] = power.to(u.W).value
+                        self.logger.debug(f"Panel {panel} generating {power.to(u.W):.2f}")
+                    else:
+                        self.solar_panel_generation[panel] = 0.0
+                        self.logger.debug(f"Panel {panel} not generating power (angle={angle})")
+            else:
+                self.logger.debug("In eclipse - no power generation")
+                for panel in ['pX', 'nX', 'pY', 'nY']:
+                    self.solar_panel_generation[panel] = 0.0
+            
+            self.total_power_generation = total_generation.to(u.W).value
+            self.logger.debug(f"Total power generation: {self.total_power_generation:.2f} W")
+            
             # Update individual panel values
             self.solar_panel_generation_pX = self.solar_panel_generation['pX']
             self.solar_panel_generation_nX = self.solar_panel_generation['nX']
@@ -159,7 +189,10 @@ class PowerModule:
             self.total_power_generation = sum(self.solar_panel_generation.values())
             
             # Simple power balance calculation
-            if self.total_power_generation > self.total_power_draw:
+            total_generation = self.total_power_generation * u.W  # Add units
+            total_draw = self.total_power_draw * u.W  # Add units
+            
+            if total_generation.value > total_draw.value:  # Compare values without units
                 self.power_balance = 1  # POSITIVE
                 if adcs_module.is_sunpointing:
                     self.battery_voltage = min(self.battery_voltage + 0.0005, 8.2)
@@ -167,13 +200,14 @@ class PowerModule:
                 else:
                     self.battery_voltage = min(self.battery_voltage + 0.0001, 8.2)
                     self.battery_current = min(self.battery_current + 0.005, 0.1)
-            elif self.total_power_generation < self.total_power_draw:
+            elif total_generation.value < total_draw.value:  # Compare values without units
                 self.power_balance = 2  # NEGATIVE
                 self.battery_voltage = max(self.battery_voltage - 0.0003, 6.5)
                 self.battery_current = max(self.battery_current - 0.004, -0.1)
             else:
                 self.power_balance = 0  # BALANCED
 
+            # Subsystem power effects
             if hasattr(self, 'comms') and self.comms.mode == 1:
                 self.battery_voltage = self.battery_voltage - 0.0002
 
@@ -182,6 +216,8 @@ class PowerModule:
 
             if hasattr(self, 'datastore') and self.datastore.mode == 1:
                 self.battery_voltage = self.battery_voltage - 0.2
+            
+            self.logger.debug(f"Power balance: {self.power_balance}, Battery: {self.battery_voltage:.2f}V @ {self.battery_current:.3f}A")
             
         except Exception as e:
             self.logger.error(f"Error updating power state: {str(e)}")

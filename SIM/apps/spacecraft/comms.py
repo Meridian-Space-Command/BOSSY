@@ -135,9 +135,12 @@ class CommsModule:
     def stop(self):
         """Stop the communications module"""
         self.running = False
-        self.mode = 0
-        self.tc_socket.close()
-        self.tm_socket.close()
+        try:
+            self.tc_socket.shutdown(socket.SHUT_RDWR)
+            self.tc_socket.close()
+            self.tm_socket.close()
+        except Exception as e:
+            self.logger.debug(f"Socket cleanup error (expected during shutdown): {e}")
         self.logger.info("CommsModule stopped")
         
     def send_tm_packet(self, packet):

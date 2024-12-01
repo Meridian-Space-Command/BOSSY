@@ -1,3 +1,6 @@
+from logger import setup_logging
+setup_logging()  # Must be called before other imports
+
 import time
 import signal
 import sys
@@ -13,6 +16,7 @@ from apps.universe.orbit import OrbitPropagator, SimulationEndedException
 from apps.universe.environment import Environment
 from config import SIM_CONFIG, SPACECRAFT_CONFIG
 from logger import SimLogger
+from astropy import units as u
 
 class Simulator:
     _sim_time = SIM_CONFIG['mission_start_time']
@@ -33,10 +37,16 @@ class Simulator:
         self.orbit_propagator = OrbitPropagator()
         self.environment = Environment()
         
-        # Initialize all subsystems independently
-        self.adcs = ADCSModule()
+        # Get initial orbit state to initialize subsystems
+        initial_state = self.orbit_propagator.propagate(SIM_CONFIG['mission_start_time'])
+        
+        # Log initial position
+        self.logger.info(f"Initial position: lat={initial_state['lat']:.2f}°, lon={initial_state['lon']:.2f}°, alt={initial_state['alt']:.1f}km")
+        
+        # Initialize all subsystems with proper initial state
+        self.adcs = ADCSModule(initial_state, self.orbit_propagator)  # Pass the existing propagator
         self.comms = CommsModule()
-        self.payload = PayloadModule(self.adcs)  # Payload needs ADCS for pointing
+        self.payload = PayloadModule(self.adcs)
         self.datastore = DatastoreModule()
         
         # Initialize power module with all dependencies
@@ -110,41 +120,35 @@ class Simulator:
         
         try:
             while self.running:
-                # Debug logging for time updates
-                self.logger.debug(f"Before update - Sim time: {Simulator._sim_time}")
-                
                 # Update simulation time
                 Simulator._sim_time += timedelta(seconds=self.time_step)
                 self.current_time = Simulator._sim_time
                 
-                # Debug logging after update
-                self.logger.debug(f"After update - Sim time: {Simulator._sim_time}")
-                self.logger.debug(f"MET: {int((self._sim_time - self.mission_start_time).total_seconds())} s")
-                
                 try:
-                    # Update subsystems in order
+                    # First propagate orbit to get new state
+                    orbit_state = self.orbit_propagator.propagate(self.current_time)
+                    
+                    # Update subsystems in sequence with orbit state
                     self.adcs.update(self.current_time)
                     self.obc.update(self.current_time)
                     
-                    # Calculate total power draw and update power subsystem
+                    # Calculate total power draw
                     total_power = self.calculate_total_power_draw()
-                    self.power.set_total_power_draw(total_power)
+                    self.power.set_total_power_draw(total_power * u.W)  # Add unit
                     self.power.update(self.current_time, self.adcs)
                     
-                    # Update remaining subsystems
+                    # Update payload with current state
                     self.payload.update(self.current_time, self.adcs)
                     
-                    # Create telemetry packet through CDH
+                    # Create and send telemetry
                     tm_packet = self.cdh.create_tm_packet(self.current_time, self.subsystems)
-                    
-                    # Send telemetry packet through COMMS
                     self.comms.send_tm_packet(tm_packet)
-
-                    # Update OBC uptime
-                    self.obc.set_uptime(self.obc.get_uptime() + self.time_step)
+                    
+                    # Update OBC uptime with proper time unit
+                    self.obc.set_uptime(self.obc.get_uptime() + self.time_step * u.s)
                     
                 except SimulationEndedException as e:
-                    self.logger.info(f"BTW: {str(e)}")
+                    self.logger.info(f"Simulation ended: {str(e)}")
                     self.stop()
                     break
                 

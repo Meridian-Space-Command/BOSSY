@@ -6,8 +6,8 @@ LOGGER_CONFIG = {
 
 # Simulator Configuration
 SIM_CONFIG = {
-    'epoch': datetime(2000, 1, 1, 0, 0, 0),  # Epoch time (don't change this!!!)
-    'mission_start_time': datetime(2025, 1, 1, 0, 0, 0),  # Mission start time
+    'epoch': datetime(2000, 1, 1, 12, 0, 0),  # Epoch time (don't change this!!!)
+    'mission_start_time': datetime(2025, 1, 1, 12, 30, 0),  # Mission start time
     'time_step': 1.0,                                     # Simulation time step in seconds
     'download_directory': './BOSSY/MCS/download/',
     'upload_directory': './BOSSY/MCS/upload/',
@@ -117,13 +117,13 @@ SPACECRAFT_CONFIG = {
             },
             'power': {
                 'solar_panels': {
-                    'pX': {'area': 0.03},  # 10x30cm = 0.03 m²
-                    'nX': {'area': 0.03},
-                    'pY': {'area': 0.03},
-                    'nY': {'area': 0.03}
+                    'pX': {'area': 0.03},  # m²
+                    'nX': {'area': 0.03},  # m²
+                    'pY': {'area': 0.03},  # m²
+                    'nY': {'area': 0.03}   # m²
                 },
-                'solar_efficiency': 0.3,  # 30% efficient solar cells
-                'solar_flux': 1361.0     # W/m² (solar constant)
+                'solar_efficiency': 0.3,    # dimensionless
+                'solar_flux': 1361.0       # W/m²
             },
             'eo_camera': {  # EO Camera Configuration
                 'resolution': 4096,  # pixels
@@ -157,18 +157,15 @@ SPACECRAFT_CONFIG = {
 # Universe Configuration
 UNIVERSE_CONFIG = {
     'perturbations': {
-        'gravity': True,        # N-body gravitational forces
-        'drag': True,          # Atmospheric drag
-        'srp': True,           # Solar radiation pressure
-        'magnetic': True       # Magnetic torques
+        'J2': True,           # J2 perturbation
+        'atmospheric': True,   # Atmospheric drag
+        'radiation': True     # Solar radiation pressure
     },
-    'space_weather': {
-        'F107': 150.0,              # Solar F10.7 radio flux (solar radio flux at 10.7 cm wavelength)
-        'F107A': 150.0,             # 81-day average of F10.7 (solar radio flux at 10.7 cm wavelength)
-        'magnetic_index': 4.0,      # Geomagnetic AP index (0-400, measure of magnetic field disturbance)
-        'solar_cycle_phase': 0.5    # 0-1, current phase of solar cycle
-    },
-    'max_altitude_for_drag': 1000.0  # km, altitude above which to ignore atmospheric drag
+    'atmosphere': {
+        'density_model': 'exponential',  # Which atmospheric model to use
+        'F107': 150.0,                   # Solar F10.7 flux
+        'Ap': 4.0                        # Geomagnetic index
+    }
 }
 
 # Orbit Configuration
@@ -176,12 +173,12 @@ ORBIT_CONFIG = {
     'spacecraft': {  # Matches spacecraft name in SPACECRAFT_CONFIG
         'epoch': SIM_CONFIG['mission_start_time'],
         'elements': {
-            'semi_major_axis': 6878.0,    # km (500km altitude + Earth radius 6378km)
-            'eccentricity': 0.0001,       # Nearly circular (0.0001 is close enough)    
-            'inclination': 97.4,          # degrees (SSO inclination for 500km)
-            'raan': 22.5,                 # degrees (typically chosen for LTAN)
-            'arg_perigee': 0.0,           # degrees (0° is prograde, 90° is prograde circular)
-            'true_anomaly': 0.0           # degrees (0° is perigee, 180° is apogee) 
+            'semi_major_axis': 6865.75,    # km (500km altitude + Earth radius 6378km)
+            'eccentricity': 0.00074436,       # Nearly circular (0.0001 is close enough)    
+            'inclination': 97.4050,          # degrees (SSO inclination for 500km)
+            'raan': 252.10,                 # degrees (typically chosen for LTAN)
+            'arg_perigee': 294.0372,           # degrees (0° is prograde, 90° is prograde circular)
+            'true_anomaly': 162.46           # degrees (0° is perigee, 180° is apogee) 
         }
     }
 }

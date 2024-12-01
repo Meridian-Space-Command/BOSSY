@@ -73,7 +73,7 @@ public class MyPacketPreprocessor extends AbstractPacketPreprocessor {
         long deltaTimeMillis = deltaTimeSeconds * 1000;  // Convert seconds to milliseconds
         
         // Convert delta time to absolute time
-        long missionStartMillis = 946684800000L; // 2000-01-01 00:00:00 UTC (epoch from BOSSY/SIM/simulator.py) 
+        long missionStartMillis = 946728000000L; // 2000-01-01 12:00:00 UTC (J2000.0 epoch)
         long absoluteTimeMillis = missionStartMillis + deltaTimeMillis;
         
         // Set the generation time
