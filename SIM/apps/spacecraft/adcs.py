@@ -12,7 +12,7 @@ import struct
 
 class ADCSModule:
     # ADCS modes
-    MODES = ['OFF', 'LOCK', 'SUNPOINTING', 'NADIR', 'DOWNLOAD', 'EOL']
+    MODES = ['OFF', 'DETUMBLE', 'SUNPOINTING', 'NADIR', 'DOWNLOAD', 'EOL']
     
     def __init__(self, initial_state=None, orbit_propagator=None):
         self.logger = SimLogger.get_logger("ADCSModule")
@@ -38,8 +38,8 @@ class ADCSModule:
         adcs_hw_config = SPACECRAFT_CONFIG['spacecraft']['hardware']['adcs']
         
         # Initialize attitude state with proper units and reasonable initial rates
-        self.quaternion = np.array([0.0, 0.0, 0.0, 1.0])  # Identity quaternion
-        self.angular_rate = np.zeros(3)  # Initialize with zero rates
+        self.quaternion = np.array(adcs_config['quaternion'])
+        self.angular_rate = np.array(adcs_config['angular_rate'])
         self.angular_rate_total = 0.0
         
         # Initialize mode and status from config
@@ -240,9 +240,9 @@ class ADCSModule:
                 self._uncontrolled_motion()
                 return
             
-            elif control_mode == 1:  # LOCK
-                # Maintain current attitude
-                q_desired = self.quaternion
+            elif control_mode == 1:  # DETUMBLE
+                self._detumble()
+                return
             
             elif control_mode == 2:  # SUNPOINTING
                 # Calculate sun pointing quaternion
@@ -360,7 +360,7 @@ class ADCSModule:
             euler_error = euler_desired - euler_current
             
             # Debug logging
-            modes = ['OFF', "LOCK", "SUNPOINTING", "NADIR", "DOWNLOAD", "EOL"]
+            modes = ['OFF', "DETUMBLE", "SUNPOINTING", "NADIR", "DOWNLOAD", "EOL"]
             self.logger.debug(f"Going to: {modes[self.mode]}")
             self.logger.debug(f"Error angle: {error_angle:.2f} deg")
             self.logger.debug(f"Slew fraction: {slew_fraction:.3f}")
@@ -376,18 +376,36 @@ class ADCSModule:
     def _uncontrolled_motion(self):
         """Update attitude for uncontrolled spacecraft (OFF mode or UNCONTROLLED status)"""
         # Natural dynamics only - small random disturbances with damping
-        MAX_RATE = 3.0  # Maximum rate in deg/s
-        DAMPING = 0.95  # Rate damping factor
+        MAX_RATE = 100.0  # Maximum rate in deg/s
         
-        # Get current rates and apply damping
-        current_rates = self.angular_rate * DAMPING
-        
-        # Add small random disturbances
-        disturbance = np.random.uniform(-0.1, 0.1, 3)  # deg/s
-        
-        # Update rates with limits
-        new_rates = current_rates + disturbance
+        # Get current rates and apply random disturbances to get new rates
+        new_rates = self.angular_rate + np.random.uniform(0.01, 0.03, 3)  # deg/s
         new_rates = np.clip(new_rates, -MAX_RATE, MAX_RATE)  # Limit maximum rates
+        
+        # Update quaternion based on rates
+        dt = self.time_step
+        delta_angles = new_rates * dt
+        
+        # Convert current quaternion to Euler angles
+        roll, pitch, yaw = self._quaternion_to_euler(self.quaternion)
+        
+        # Update angles
+        roll += delta_angles[0]
+        pitch += delta_angles[1]
+        yaw += delta_angles[2]
+        
+        # Convert back to quaternion
+        self.quaternion = self._euler_to_quaternion(roll, pitch, yaw)
+        self.angular_rate = new_rates
+        self.angular_rate_total = np.linalg.norm(new_rates)
+
+    def _detumble(self):
+        """Update attitude for detumbling spacecraft (DETUMBLE mode)"""
+        # Natural dynamics only - small random disturbances with damping
+        DAMPING = 0.98  # Rate damping factor
+        
+        # Get current rates and apply damping and random disturbances
+        new_rates = (self.angular_rate * DAMPING) + np.random.uniform(-0.1, 0.1, 3)
         
         # Update quaternion based on rates
         dt = self.time_step
