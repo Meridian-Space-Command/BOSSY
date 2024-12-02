@@ -161,10 +161,10 @@ class PowerModule:
                     
                     self.logger.debug(f"Panel {panel}: angle={angle} degrees, area={area}")
                     
-                    if angle < 90.0:  # Compare floats
+                    if angle < 70.0:  # should be 90.0, but we're penalizing more for teaching purposes
                         angle_rad = np.radians(angle)
                         angle_factor = np.cos(angle_rad)
-                        power = (solar_flux * solar_efficiency * area * angle_factor)
+                        power = (solar_flux * solar_efficiency * area * (angle_factor**4))  # angle_factor to the 4th power to penalize more for teaching purposes
                         total_generation += power
                         self.solar_panel_generation[panel] = power.to(u.W).value
                         self.logger.debug(f"Panel {panel} generating {power.to(u.W):.2f}")
