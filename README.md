@@ -64,17 +64,17 @@ ATS = Absolute Time Sequence
 - Example:
 
 ```
-789004910,14,None, # Reset OBC
-789004930,33,2, # Set ADCS mode to SUNPOINTING
+789006610,14,None, # Reset OBC
+789006630,33,2, # Set ADCS mode to SUNPOINTING
 ```
 
 This means:
 - cmd_1:
-    - Timestamp = 789004910 (seconds since epoch (e.g. 2000-01-01 00:00:00) = 2025-01-01 00:00:30)
+    - Timestamp = 789006610 (seconds since epoch (e.g. 2000-01-01 12:00:00) = 2025-01-01 12:30:10)
     - command_id = 14 (Reset OBC) 
     - command_data = None (no data as this command has no arguments).
 - cmd_2:
-    - Timestamp = 789004930 (seconds since epoch (e.g. 2000-01-01 00:00:00) = 2025-01-01 00:00:30)
+    - Timestamp = 789006630 (seconds since epoch (e.g. 2000-01-01 12:00:00) = 2025-01-01 12:30:30)
     - command_id = 33 (ADCS_SET_MODE) 
     - command_data = 2 (SUNPOINTING)
 
