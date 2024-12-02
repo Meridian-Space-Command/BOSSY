@@ -135,6 +135,7 @@ class CommsModule:
     def stop(self):
         """Stop the communications module"""
         self.running = False
+        self.mode = 0  # Set to RX mode
         try:
             self.tc_socket.shutdown(socket.SHUT_RDWR)
             self.tc_socket.close()
