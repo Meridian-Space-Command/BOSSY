@@ -3,9 +3,17 @@ import numpy as np
 from astropy.time import Time
 from astropy.coordinates import get_sun
 from astropy.coordinates.matrix_utilities import rotation_matrix
+from config import UNIVERSE_CONFIG
 
 class Environment:
     """Environmental models for space simulation"""
+    
+    def __init__(self):
+        # Get radiation parameters from config
+        self.rad_config = UNIVERSE_CONFIG['radiation']
+        self.P_sr = self.rad_config['P_sr']
+        self.R = self.rad_config['R']
+        self.Cr = self.rad_config['Cr']
     
     @staticmethod
     def atmospheric_density(altitude):
@@ -45,13 +53,15 @@ class Environment:
         # Transform sun vector to body frame
         sun_body = R.T @ sun_to_sc.value
         
-        # Calculate angles
+        # Calculate angles with radiation pressure effects
         angles = {}
         for axis, vec in [('pX', [1,0,0]), ('nX', [-1,0,0]), 
                          ('pY', [0,1,0]), ('nY', [0,-1,0])]:
             dot_product = np.dot(sun_body, vec)
             angle = np.arccos(np.clip(dot_product, -1, 1))
-            angles[axis] = float(np.degrees(angle))  # Convert to float degrees
+            angles[axis] = float(np.degrees(angle))
+            # Apply radiation pressure coefficient
+            angles[axis] *= self.Cr * self.R
             
         return angles
 

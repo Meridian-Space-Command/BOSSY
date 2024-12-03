@@ -4,7 +4,7 @@ from astropy import units as u
 from poliastro.bodies import Earth, Sun, Moon  # Import the classes directly
 from poliastro.twobody import Orbit
 from poliastro.ephem import Ephem
-from poliastro.core.perturbations import J2_perturbation, atmospheric_drag_exponential
+from poliastro.core.perturbations import J2_perturbation, atmospheric_drag_exponential, radiation_pressure
 from poliastro.twobody.propagation import CowellPropagator
 from poliastro.core.propagation import func_twobody
 from poliastro.core.elements import rv2coe
@@ -80,8 +80,35 @@ class OrbitPropagator:
             self.logger.info("Atmospheric drag enabled")
             
         if UNIVERSE_CONFIG['perturbations']['radiation']:
-            # Solar radiation pressure could be added here when supported by poliastro
-            self.logger.warning("Solar radiation pressure not yet implemented")
+            # Get radiation parameters from config
+            rad_config = UNIVERSE_CONFIG['radiation']
+            
+            # Convert parameters to proper units
+            C_R = rad_config['Cr']  # Dimensionless coefficient
+            A_over_m = rad_config['A_over_m']  # km²/kg
+            # Solar power / speed of light (kg⋅km/s²)
+            Wdivc_s = 1.0e14  # Approximate value for Sun
+            
+            def star(t0):
+                """Get Sun position at given time"""
+                sun_gcrs = get_sun(Time(self.mission_start) + t0 * u.s)
+                return np.array([
+                    sun_gcrs.cartesian.x.to(u.km).value,
+                    sun_gcrs.cartesian.y.to(u.km).value,
+                    sun_gcrs.cartesian.z.to(u.km).value
+                ])
+            
+            self.perturbations.append(
+                lambda t0, state, k: radiation_pressure(
+                    t0, state, k,
+                    R=R,
+                    C_R=C_R,
+                    A_over_m=A_over_m,
+                    Wdivc_s=Wdivc_s,
+                    star=star
+                )
+            )
+            self.logger.info("Solar radiation pressure enabled")
 
         # Create orbit object with perturbations
         orb = Orbit.from_classical(

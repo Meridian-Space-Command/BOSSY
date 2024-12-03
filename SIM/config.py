@@ -19,12 +19,18 @@ UNIVERSE_CONFIG = {
     'perturbations': {
         'J2': True,           # J2 perturbation
         'atmospheric': True,   # Atmospheric drag
-        'radiation': False    # Solar radiation pressure (not implemented)
+        'radiation': True     # Solar radiation pressure
     },
     'atmosphere': {
         'density_model': 'exponential',  # Which atmospheric model to use
         'F107': 150.0,                   # Solar F10.7 flux
         'Ap': 4.0                        # Geomagnetic index
+    },
+    'radiation': {
+        'P_sr': 4.56e-6,      # Solar radiation pressure [kN/km²]
+        'R': 0.7,             # Radiation pressure coefficient
+        'A_over_m': 0.01,     # Area to mass ratio [km²/kg]
+        'Cr': 2.0             # Radiation pressure coefficient (typically 1.0-2.0)
     }
 }
 
