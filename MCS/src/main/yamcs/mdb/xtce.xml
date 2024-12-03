@@ -227,7 +227,7 @@
 			<Parameter name="CCSDS_Packet_ID" parameterTypeRef="CCSDS_Packet_ID_Type" shortDescription="CCSDS Packet ID"/>
 			<Parameter name="CCSDS_Packet_Sequence" parameterTypeRef="CCSDS_Packet_Sequence_Type" shortDescription="CCSDS Packet Sequence"/>
 			<Parameter name="CCSDS_Packet_Length" parameterTypeRef="CCSDS_Packet_Length_Type" shortDescription="CCSDS Packet Length (bytes)"/>
-			<Parameter name="CCSDS_Time" parameterTypeRef="Seconds_Time_Type" shortDescription="CCSDS Time (s). Number of seconds since the epoch (2000-01-01 00:00:00 UTC)"/>
+			<Parameter name="CCSDS_Time" parameterTypeRef="Seconds_Time_Type" shortDescription="CCSDS Time (s). Number of seconds since the epoch (2000-01-01 12:00:00 UTC)"/>
 
             <!-- OBC Parameters --> 	
             <Parameter name="OBC_state" parameterTypeRef="SubsystemState_Type" shortDescription="OBC State (0=OFF, 1=IDLE, 2=ACTIVE, 3=ERROR)"/>
