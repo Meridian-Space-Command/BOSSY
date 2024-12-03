@@ -7,8 +7,6 @@ from config import SIM_CONFIG, LOGGER_CONFIG  # Import SIM_CONFIG
 
 def setup_logging():
     """Setup logging configuration"""
-    logging.basicConfig(level=LOGGER_CONFIG['level'])
-    
     # Configure warnings
     warnings.filterwarnings('ignore', category=urllib3.exceptions.NotOpenSSLWarning)
     warnings.filterwarnings('ignore', category=DeprecationWarning)
