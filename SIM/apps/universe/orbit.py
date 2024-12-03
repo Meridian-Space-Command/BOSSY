@@ -112,10 +112,43 @@ class OrbitPropagator:
         # Use default propagator without specifying method
         self._current_state = self._current_state.propagate(self.last_update_time)
         
-        # Calculate eclipse condition using position vectors
-        # Get spacecraft position
-        r_sc = self._current_state.r
+        # Get current position and velocity in Earth-centered inertial frame
+        pos = self._current_state.r
+        vel = self._current_state.v
         
+        # Convert position to lat/lon using astropy coordinates
+        gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
+                    obstime=self.last_update_time)
+        itrs = gcrs.transform_to(ITRS(obstime=self.last_update_time))
+        location = itrs.represent_as(SphericalRepresentation)
+        
+        # Get lat/lon with proper wrapping
+        lat = location.lat.to(u.deg).value
+        lon = location.lon.wrap_at(180 * u.deg).to(u.deg).value
+        
+        # Track latitude changes to determine direction
+        if not hasattr(self, '_last_lat'):
+            self._last_lat = lat
+            self._crossing_direction = None
+        
+        # Near equator, determine crossing direction
+        if abs(lat) < 1.0:  # Near equator
+            if self._last_lat > lat:
+                self._crossing_direction = 'south'  # Heading south
+            elif self._last_lat < lat:
+                self._crossing_direction = 'north'  # Heading north
+        elif abs(lat) > 1.0:  # Away from equator
+            self._crossing_direction = None
+        
+        # Force continuation of direction through equator
+        if self._crossing_direction == 'south' and lat > self._last_lat:
+            lat = -abs(lat)  # Force into southern hemisphere
+        elif self._crossing_direction == 'north' and lat < self._last_lat:
+            lat = abs(lat)   # Force into northern hemisphere
+        
+        self._last_lat = lat
+
+        # Calculate eclipse condition using position vectors
         # Get Sun position using astropy
         sun_gcrs = get_sun(self.last_update_time)
         # Convert from AU to km
@@ -126,8 +159,8 @@ class OrbitPropagator:
         ]) * u.km
         
         # Calculate vectors
-        sun_to_sc = r_sc - r_sun  # Vector from Sun to spacecraft
-        r_earth = -r_sc  # Vector from spacecraft to Earth center
+        sun_to_sc = pos - r_sun  # Vector from Sun to spacecraft
+        r_earth = -pos  # Vector from spacecraft to Earth center
         
         # Calculate angles and distances for eclipse geometry
         sun_angle = np.arccos(np.dot(-sun_to_sc, r_earth) / 
@@ -147,24 +180,6 @@ class OrbitPropagator:
             self._eclipse_type = None
             
         self.logger.debug(f"Eclipse state: {self._eclipse_type}")
-        
-        # Get current position and velocity in Earth-centered inertial frame
-        pos = self._current_state.r
-        vel = self._current_state.v
-        
-        # Convert position to lat/lon using astropy coordinates
-        gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
-                    obstime=self.last_update_time)
-        itrs = gcrs.transform_to(ITRS(obstime=self.last_update_time))
-        location = itrs.represent_as(SphericalRepresentation)
-        
-        # Get lat/lon with proper wrapping
-        lat = location.lat.to(u.deg).value
-        lon = location.lon.wrap_at(180 * u.deg).to(u.deg).value  # Wrap longitude at ±180°
-
-        # For sun-synchronous orbit (i > 90°), invert latitude
-        if self._current_state.inc.to(u.deg).value > 90:
-            lat = abs(lat)  # For retrograde orbits, use positive latitude in northern hemisphere
         
         # Get current orbital elements
         alt = (np.linalg.norm(pos) - self.earth.R).to(u.km).value  # Height above Earth's surface

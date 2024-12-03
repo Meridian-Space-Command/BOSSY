@@ -63,6 +63,13 @@
             opacity: 0.5
         }).addTo(map);
 
+        // Add equator line
+        var equatorLine = L.polyline([[0, -180], [0, 180]], {
+            color: 'black',
+            weight: 1,
+            opacity: 0.5
+        }).addTo(map);
+
         // Initialize spacecraft marker
         var spacecraft = L.marker([0, 0], {
             wrapLat: [-90, 90],
