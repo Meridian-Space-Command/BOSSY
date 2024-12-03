@@ -18,7 +18,8 @@ current_state = {
     'lat': 0,
     'lon': 0,
     'velocity': [0, 0, 0],
-    'orbit_path': []
+    'orbit_path': [],
+    'future_path': []
 }
 
 # Store server thread for clean shutdown
@@ -32,13 +33,19 @@ def index():
 def get_state():
     return jsonify(current_state)
 
-def update_state(lat, lon, velocity):
+def update_state(lat, lon, velocity, orbit_path=None, future_path=None):
     """Update spacecraft state, handling date line crossing"""
     global current_state
     current_state['lat'] = float(lat)
     current_state['lon'] = float(lon)
     current_state['velocity'] = velocity.tolist()
     current_state['time'] = SimTime.get_time().isoformat()
+    
+    # Handle orbit path updates
+    if orbit_path is not None:
+        current_state['orbit_path'] = orbit_path
+    if future_path is not None:
+        current_state['future_path'] = future_path
     
     new_point = [float(lat), float(lon)]
     

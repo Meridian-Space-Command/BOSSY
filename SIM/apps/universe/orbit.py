@@ -112,6 +112,26 @@ class OrbitPropagator:
         # Use default propagator without specifying method
         self._current_state = self._current_state.propagate(self.last_update_time)
         
+        # Calculate future orbit points (one full orbit)
+        future_points = []
+        period_seconds = self.period.to(u.s).value
+        num_points = int(period_seconds / 30)  # Points every 30 seconds
+        
+        for i in range(num_points):
+            future_time = Time(timestamp) + (i * 30 * u.s)
+            future_state = self._current_state.propagate(future_time)
+            
+            # Convert position to lat/lon
+            pos = future_state.r
+            gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
+                        obstime=future_time)
+            itrs = gcrs.transform_to(ITRS(obstime=future_time))
+            location = itrs.represent_as(SphericalRepresentation)
+            
+            lat = location.lat.to(u.deg).value
+            lon = location.lon.wrap_at(180 * u.deg).to(u.deg).value
+            future_points.append([lat, lon])
+        
         # Get current position and velocity in Earth-centered inertial frame
         pos = self._current_state.r
         vel = self._current_state.v
@@ -212,7 +232,8 @@ class OrbitPropagator:
             'eccentricity': self._current_state.ecc.value,
             'inclination': self._current_state.inc.to(u.deg).value,
             'raan': self._current_state.raan.to(u.deg).value,
-            'arg_perigee': self._current_state.argp.to(u.deg).value
+            'arg_perigee': self._current_state.argp.to(u.deg).value,
+            'future_path': future_points,  # Add future points to state
         }
         
         # Check for reentry

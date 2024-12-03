@@ -9,6 +9,7 @@ from ..universe.orbit import OrbitPropagator
 from config import SPACECRAFT_CONFIG, SIM_CONFIG
 from logger import SimLogger
 import struct
+from ..visualization.web_server import update_state
 
 class ADCSModule:
     # ADCS modes
@@ -92,6 +93,15 @@ class ADCSModule:
                 orbit_state['alt']
             ]
             self.eclipse = 1 if orbit_state['eclipse']['in_eclipse'] else 0
+            
+            # Update visualization with current and future path
+            update_state(
+                orbit_state['lat'], 
+                orbit_state['lon'], 
+                orbit_state['velocity'],
+                orbit_path=None,
+                future_path=orbit_state.get('future_path', [])
+            )
             
             # Calculate environmental effects
             self.density = self.environment.atmospheric_density(orbit_state['alt'])
