@@ -19,7 +19,7 @@ UNIVERSE_CONFIG = {
     'perturbations': {
         'J2': True,           # J2 perturbation
         'atmospheric': True,   # Atmospheric drag
-        'radiation': True     # Solar radiation pressure
+        'radiation': False    # Solar radiation pressure (not implemented)
     },
     'atmosphere': {
         'density_model': 'exponential',  # Which atmospheric model to use
