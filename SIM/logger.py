@@ -3,10 +3,12 @@ import os
 from datetime import datetime
 import warnings
 import urllib3
-from config import SIM_CONFIG  # Import SIM_CONFIG
+from config import SIM_CONFIG, LOGGER_CONFIG  # Import SIM_CONFIG
 
 def setup_logging():
-    """Configure warnings and logging before any other imports"""
+    """Setup logging configuration"""
+    logging.basicConfig(level=LOGGER_CONFIG['level'])
+    
     # Configure warnings
     warnings.filterwarnings('ignore', category=urllib3.exceptions.NotOpenSSLWarning)
     warnings.filterwarnings('ignore', category=DeprecationWarning)
@@ -31,7 +33,7 @@ class SimLogger:
         if cls._logger is None:
             # Create logger
             cls._logger = logging.getLogger(name)
-            cls._logger.setLevel(logging.INFO)
+            cls._logger.setLevel(LOGGER_CONFIG['level'])
             
             # Create log directory if it doesn't exist
             if not os.path.exists('logs'):
@@ -40,11 +42,11 @@ class SimLogger:
             # Create file handler
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             fh = logging.FileHandler(f'logs/sim_{timestamp}.log')
-            fh.setLevel(logging.INFO)
+            fh.setLevel(LOGGER_CONFIG['level'])
             
             # Create console handler
             ch = logging.StreamHandler()
-            ch.setLevel(logging.INFO)
+            ch.setLevel(LOGGER_CONFIG['level'])
             
             # Create custom formatter that includes simulation time
             class CustomFormatter(logging.Formatter):

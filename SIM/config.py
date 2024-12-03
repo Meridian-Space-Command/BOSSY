@@ -14,6 +14,35 @@ SIM_CONFIG = {
     'google_maps_api_key': 'AIzaSyDL__brVoZ4VY72_ZnRl5MhLnWLpuP4bsA'
 }
 
+# Universe Configuration
+UNIVERSE_CONFIG = {
+    'perturbations': {
+        'J2': True,           # J2 perturbation
+        'atmospheric': True,   # Atmospheric drag
+        'radiation': True     # Solar radiation pressure
+    },
+    'atmosphere': {
+        'density_model': 'exponential',  # Which atmospheric model to use
+        'F107': 150.0,                   # Solar F10.7 flux
+        'Ap': 4.0                        # Geomagnetic index
+    }
+}
+
+# Orbit Configuration
+ORBIT_CONFIG = {
+    'spacecraft': {  # Matches spacecraft name in SPACECRAFT_CONFIG
+        'epoch': SIM_CONFIG['mission_start_time'],
+        'elements': {
+            'semi_major_axis': 6865.75,    # km (500km altitude + Earth radius 6378km)
+            'eccentricity': 0.00074436,       # Nearly circular (0.0001 is close enough)    
+            'inclination': 97.4050,          # degrees (SSO inclination for 500km)
+            'raan': 252.10,                 # degrees (typically chosen for LTAN)
+            'arg_perigee': 294.0372,           # degrees (0° is prograde, 90° is prograde circular)
+            'true_anomaly': 162.46           # degrees (0° is perigee, 180° is apogee) 
+        }
+    }
+}
+
 # Spacecraft Configuration
 SPACECRAFT_CONFIG = {
     'spacecraft': {
@@ -131,33 +160,4 @@ SPACECRAFT_CONFIG = {
             }
         }
     }   
-}
-
-# Universe Configuration
-UNIVERSE_CONFIG = {
-    'perturbations': {
-        'J2': True,           # J2 perturbation
-        'atmospheric': True,   # Atmospheric drag
-        'radiation': True     # Solar radiation pressure
-    },
-    'atmosphere': {
-        'density_model': 'exponential',  # Which atmospheric model to use
-        'F107': 150.0,                   # Solar F10.7 flux
-        'Ap': 4.0                        # Geomagnetic index
-    }
-}
-
-# Orbit Configuration
-ORBIT_CONFIG = {
-    'spacecraft': {  # Matches spacecraft name in SPACECRAFT_CONFIG
-        'epoch': SIM_CONFIG['mission_start_time'],
-        'elements': {
-            'semi_major_axis': 6865.75,    # km (500km altitude + Earth radius 6378km)
-            'eccentricity': 0.00074436,       # Nearly circular (0.0001 is close enough)    
-            'inclination': 97.4050,          # degrees (SSO inclination for 500km)
-            'raan': 252.10,                 # degrees (typically chosen for LTAN)
-            'arg_perigee': 294.0372,           # degrees (0° is prograde, 90° is prograde circular)
-            'true_anomaly': 162.46           # degrees (0° is perigee, 180° is apogee) 
-        }
-    }
 }
