@@ -5,7 +5,8 @@ from poliastro.bodies import Earth, Sun, Moon  # Import the classes directly
 from poliastro.twobody import Orbit
 from poliastro.ephem import Ephem
 from poliastro.core.perturbations import J2_perturbation, atmospheric_drag_exponential
-from poliastro.core.propagation import cowell
+from poliastro.twobody.propagation import CowellPropagator
+from poliastro.core.propagation import func_twobody
 from poliastro.core.elements import rv2coe
 from poliastro.util import time_range
 from astropy.time import Time
@@ -43,7 +44,16 @@ class OrbitPropagator:
         self.perturbations = []
         
         if UNIVERSE_CONFIG['perturbations']['J2']:
-            self.perturbations.append(J2_perturbation)
+            # J2 perturbation requires R and J2 value
+            R = self.earth.R.to(u.km)
+            J2 = self.earth.J2.value
+            self.perturbations.append(
+                lambda t0, state, k: J2_perturbation(
+                    t0, state, k,
+                    J2=J2,
+                    R=R
+                )
+            )
             self.logger.info("J2 perturbation enabled")
             
         if UNIVERSE_CONFIG['perturbations']['atmospheric']:
@@ -53,8 +63,7 @@ class OrbitPropagator:
             # Convert parameters to proper units
             R = self.earth.R.to(u.km)
             C_D = 2.2 * u.dimensionless_unscaled  # Typical drag coefficient
-            A = 0.1 * u.m**2  # Cross sectional area
-            m = 10.0 * u.kg   # Mass
+            A_over_m = (0.1 * u.m**2 / (10.0 * u.kg)).to(u.km**2 / u.kg)  # Area/mass ratio
             H0 = 7.249 * u.km  # Scale height
             rho0 = 1.225 * u.kg / u.m**3  # Sea level density
             
@@ -63,8 +72,7 @@ class OrbitPropagator:
                     t0, state, k,
                     R=R,
                     C_D=C_D,
-                    A=A,
-                    m=m,
+                    A_over_m=A_over_m,
                     H0=H0,
                     rho0=rho0
                 )
@@ -82,12 +90,6 @@ class OrbitPropagator:
             self.raan, self.argp, self.nu,
             epoch=Time(self.mission_start)
         )
-
-        # Set propagator method based on perturbations
-        if self.perturbations:
-            self.logger.info(f"Using propagator with {len(self.perturbations)} perturbations")
-        else:
-            self.logger.info("Using Keplerian propagator (no perturbations)")
 
         # Calculate orbital period
         self.period = orb.period.to(u.s)
@@ -131,8 +133,30 @@ class OrbitPropagator:
         """Propagate orbit and return complete state"""
         self.last_update_time = Time(timestamp)
         
-        # Use default propagator without specifying method
-        self._current_state = self._current_state.propagate(self.last_update_time)
+        # Combine perturbations into a single function
+        def f(t0, u_, k):
+            du_kep = func_twobody(t0, u_, k)
+            
+            # Sum all perturbation accelerations
+            ax = ay = az = 0
+            if self.perturbations:
+                for perturbation in self.perturbations:
+                    dax, day, daz = perturbation(t0, u_, k)
+                    ax += dax
+                    ay += day
+                    az += daz
+            
+            du_ad = np.array([0, 0, 0, ax, ay, az])
+            return du_kep + du_ad
+
+        # Propagate orbit with perturbations if enabled
+        if self.perturbations:
+            self._current_state = self._current_state.propagate(
+                self.last_update_time,
+                method=CowellPropagator(f=f)
+            )
+        else:
+            self._current_state = self._current_state.propagate(self.last_update_time)
         
         # Calculate future orbit points (one full orbit)
         future_points = []
