@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 LOGGER_CONFIG = {
     'level': 'INFO',  # Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -6,8 +6,8 @@ LOGGER_CONFIG = {
 
 # Simulator Configuration
 SIM_CONFIG = {
-    'epoch': datetime(2000, 1, 1, 12, 0, 0),  # Epoch time (don't change this!!!)
-    'mission_start_time': datetime(2025, 1, 1, 12, 30, 0),  # Mission start time
+    'epoch': datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc),  # Epoch time (don't change this!!!)
+    'mission_start_time': datetime(2025, 1, 1, 12, 30, 0, tzinfo=timezone.utc),  # Mission start time
     'time_step': 1.0,                                     # Simulation time step in seconds
     'download_directory': './BOSSY/MCS/download/',
     'upload_directory': './BOSSY/MCS/upload/',
