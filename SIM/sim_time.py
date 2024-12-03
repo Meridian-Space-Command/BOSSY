@@ -1,4 +1,3 @@
-from datetime import datetime
 from config import SIM_CONFIG
 
 class SimTime:

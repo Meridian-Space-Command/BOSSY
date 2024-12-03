@@ -2,7 +2,6 @@ import struct
 from logger import SimLogger
 from config import SPACECRAFT_CONFIG, SIM_CONFIG
 import numpy as np
-import time
 import requests
 import os
 from PIL import Image

@@ -3,12 +3,9 @@ from config import ORBIT_CONFIG, SIM_CONFIG, UNIVERSE_CONFIG
 from astropy import units as u
 from poliastro.bodies import Earth, Sun, Moon  # Import the classes directly
 from poliastro.twobody import Orbit
-from poliastro.ephem import Ephem
 from poliastro.core.perturbations import J2_perturbation, atmospheric_drag_exponential, radiation_pressure
 from poliastro.twobody.propagation import CowellPropagator
 from poliastro.core.propagation import func_twobody
-from poliastro.core.elements import rv2coe
-from poliastro.util import time_range
 from astropy.time import Time
 from astropy.coordinates import GCRS, ITRS, CartesianRepresentation, SphericalRepresentation, get_sun
 from logger import SimLogger  # Import SimLogger
