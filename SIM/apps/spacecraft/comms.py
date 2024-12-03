@@ -35,6 +35,7 @@ class CommsModule:
         
         self.running = False
         self.cdh = None  # Will be set later via set_cdh
+        self._last_packet_time = None  # Track last packet send time
         
     def set_cdh(self, cdh):
         """Set reference to CDH module"""
@@ -144,15 +145,23 @@ class CommsModule:
             self.logger.debug(f"Socket cleanup error (expected during shutdown): {e}")
         self.logger.info("CommsModule stopped")
         
-    def send_tm_packet(self, packet):
+    def send_tm_packet(self, current_time, packet):
         """Send telemetry packet"""
-        if self.mode == 1:  # if TXRX mode, send to TM socket
-            try:
-                self.tm_socket.sendto(packet, (self.HOST, self.TM_PORT))
-                self.packets_sent += 1
-                self.logger.debug(f"Sent TM packet: {packet.hex()}")
-            except socket.error as e:
-                self.logger.error(f"Socket error while sending TM: {e}")
+        if self.mode != 1:  # Only send if in TXRX mode
+            return
+            
+        # Check if we already sent a packet this cycle
+        if current_time == self._last_packet_time:
+            return
+            
+        self._last_packet_time = current_time
+        
+        try:
+            self.tm_socket.sendto(packet, (self.HOST, self.TM_PORT))
+            self.packets_sent += 1
+            self.logger.debug(f"Sent TM packet {self.packets_sent}: {packet.hex()}")
+        except socket.error as e:
+            self.logger.error(f"Socket error while sending TM: {e}")
             
     def _tc_listener(self):
         """Listen for telecommands on UDP socket"""

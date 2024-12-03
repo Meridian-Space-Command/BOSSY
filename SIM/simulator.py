@@ -14,7 +14,7 @@ from apps.spacecraft.obc import OBCModule
 from apps.spacecraft.comms import CommsModule
 from apps.universe.orbit import OrbitPropagator, SimulationEndedException
 from apps.universe.environment import Environment
-from config import SIM_CONFIG, SPACECRAFT_CONFIG
+from config import SIM_CONFIG, SPACECRAFT_CONFIG, LOGGER_CONFIG
 from logger import SimLogger
 from astropy import units as u
 from apps.visualization.web_server import start_server, update_state
@@ -34,7 +34,7 @@ class Simulator:
 
     def __init__(self):
         self.logger = SimLogger.get_logger("Simulator")
-        
+
         # Initialize orbit propagator and environment first
         self.orbit_propagator = OrbitPropagator()
         self.environment = Environment()
@@ -60,6 +60,7 @@ class Simulator:
             payload=self.payload,
             datastore=self.datastore
         )
+        self.power.adcs_module = self.adcs  # Set ADCS reference
 
         self.obc = OBCModule()
         self.cdh = CDHModule()
@@ -122,44 +123,46 @@ class Simulator:
 
     def run(self):
         self.running = True
+        next_update = time.monotonic() + self.time_step  # Schedule first update
         
         try:
             while self.running:
+                loop_start = time.monotonic()
+                
                 # Update simulation time
                 self.current_time += timedelta(seconds=self.time_step)
-                SimTime.set_time(self.current_time)  # Update shared time
-                
-                # Update logger's time
+                SimTime.set_time(self.current_time)
                 SimLogger.set_time(self.current_time)
                 
                 try:
-                    # First propagate orbit to get new state
+                    # Propagate orbit once to get new state
                     orbit_state = self.orbit_propagator.propagate(self.current_time)
                     
                     # Update subsystems in sequence with orbit state
-                    self.adcs.update(self.current_time)
+                    self.adcs.update(self.current_time, orbit_state)
                     self.obc.update(self.current_time)
                     
                     # Calculate total power draw
                     total_power = self.calculate_total_power_draw()
-                    self.power.set_total_power_draw(total_power * u.W)  # Add unit
-                    self.power.update(self.current_time, self.adcs)
+                    self.power.set_total_power_draw(total_power * u.W)
+                    self.power.update(self.current_time, orbit_state)
                     
                     # Update payload with current state
-                    self.payload.update(self.current_time, self.adcs)
+                    self.payload.update(self.current_time, orbit_state)
                     
                     # Create and send telemetry
                     tm_packet = self.cdh.create_tm_packet(self.current_time, self.subsystems)
-                    self.comms.send_tm_packet(tm_packet)
+                    self.comms.send_tm_packet(self.current_time, tm_packet)
                     
-                    # Update OBC uptime with proper time unit
                     self.obc.set_uptime(self.obc.get_uptime() + self.time_step * u.s)
                     
-                    # Update web visualization
+                    # Update visualization once with current state
                     update_state(
-                        self.adcs.latitude,
-                        self.adcs.longitude,
-                        orbit_state['velocity']
+                        orbit_state['lat'],
+                        orbit_state['lon'],
+                        orbit_state['velocity'],
+                        orbit_path=None,
+                        future_path=orbit_state.get('future_path', [])
                     )
                     
                 except SimulationEndedException as e:
@@ -167,9 +170,15 @@ class Simulator:
                     self.stop()
                     break
                 
-                # Sleep for time_step
-                time.sleep(self.time_step)
+                # Sleep precisely until next scheduled update
+                sleep_time = next_update - time.monotonic()
+                if sleep_time > 0:
+                    time.sleep(sleep_time)
+                else:
+                    self.logger.warning(f"Processing took longer than time step: {-sleep_time:.3f}s over")
                 
+                next_update += self.time_step  # Schedule next update
+
         except Exception as e:
             self.logger.error(f"Error in simulation loop: {str(e)}")
             self.stop()

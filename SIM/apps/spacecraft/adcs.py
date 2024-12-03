@@ -80,12 +80,9 @@ class ADCSModule:
         
         self.logger.info("ADCS Module initialized")
         
-    def update(self, current_time):
+    def update(self, current_time, orbit_state):
         """Update ADCS state"""
         try:
-            # Get new orbital state
-            orbit_state = self.orbit_propagator.propagate(current_time)
-            
             # Update position and eclipse state directly from orbit state
             self.position = [
                 orbit_state['lat'],
@@ -93,15 +90,6 @@ class ADCSModule:
                 orbit_state['alt']
             ]
             self.eclipse = 1 if orbit_state['eclipse']['in_eclipse'] else 0
-            
-            # Update visualization with current and future path
-            update_state(
-                orbit_state['lat'], 
-                orbit_state['lon'], 
-                orbit_state['velocity'],
-                orbit_path=None,
-                future_path=orbit_state.get('future_path', [])
-            )
             
             # Calculate environmental effects
             self.density = self.environment.atmospheric_density(orbit_state['alt'])

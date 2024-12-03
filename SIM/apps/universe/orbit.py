@@ -94,6 +94,28 @@ class OrbitPropagator:
         self.last_update_time = Time(self.mission_start)
         self._current_state = orb
 
+        # Calculate future orbit points (one full orbit)
+        future_points = []
+        period_seconds = self.period.to(u.s).value
+        num_points = int(period_seconds / 30)  # Points every 30 seconds
+        
+        for i in range(num_points):
+            future_time = Time(self.mission_start) + (i * 30 * u.s)
+            future_state = self._current_state.propagate(future_time)
+            
+            # Convert position to lat/lon
+            pos = future_state.r
+            gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
+                        obstime=future_time)
+            itrs = gcrs.transform_to(ITRS(obstime=future_time))
+            location = itrs.represent_as(SphericalRepresentation)
+            
+            lat = location.lat.to(u.deg).value
+            lon = location.lon.wrap_at(180 * u.deg).to(u.deg).value
+            future_points.append([lat, lon])
+        
+        self.future_orbit = future_points
+
         self.logger.info(f"Orbit initialized at epoch {self.mission_start}")
         self.logger.info(
             f"Initial orbital elements: "
@@ -233,7 +255,7 @@ class OrbitPropagator:
             'inclination': self._current_state.inc.to(u.deg).value,
             'raan': self._current_state.raan.to(u.deg).value,
             'arg_perigee': self._current_state.argp.to(u.deg).value,
-            'future_path': future_points,  # Add future points to state
+            'future_path': self.future_orbit,  # Add pre-calculated future points
         }
         
         # Check for reentry

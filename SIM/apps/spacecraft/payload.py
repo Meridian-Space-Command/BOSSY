@@ -57,15 +57,19 @@ class PayloadModule:
         
         return struct.pack(">BbbfB", *values)
     
-    def update(self, current_time, adcs):
-        """Update PAYLOAD state"""
-        # Update time
-        self.current_time = current_time
-        
-        # Update position from orbit state (already in correct units)
-        self.latitude = adcs.latitude   # degrees
-        self.longitude = adcs.longitude # degrees
-        self.altitude = adcs.altitude   # km
+    def update(self, current_time, orbit_state):
+        """Update payload state"""
+        try:
+            # Check if we're in a good position for imaging
+            self.altitude = orbit_state['alt']
+            self.latitude = orbit_state['lat']
+            self.longitude = orbit_state['lon']
+            
+            # Update time
+            self.current_time = current_time
+            
+        except Exception as e:
+            self.logger.error(f"Error updating payload state: {e}")
 
     def process_command(self, command_id, command_data):
         """Process PAYLOAD commands"""
