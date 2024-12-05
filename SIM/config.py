@@ -17,9 +17,9 @@ SIM_CONFIG = {
 # Universe Configuration
 UNIVERSE_CONFIG = {
     'perturbations': {
-        'J2': True,           # J2 perturbation
-        'atmospheric': True,   # Atmospheric drag
-        'radiation': True     # Solar radiation pressure
+        'J2': False,           # J2 perturbation
+        'atmospheric': False,   # Atmospheric drag
+        'radiation': False     # Solar radiation pressure
     },
     'atmosphere': {
         'density_model': 'exponential',  # Which atmospheric model to use
