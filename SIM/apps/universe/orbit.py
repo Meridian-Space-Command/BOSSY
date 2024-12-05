@@ -329,7 +329,7 @@ class OrbitPropagator:
         """Initiate deorbit burn by reducing semi-major axis"""
         self.logger.info("Initiating deorbit burn")
         
-        # Calculate change in semi-major axis for 4km altitude decrease
+        # Calculate change in semi-major axis for 4km altitude decrease per second
         delta_a = -4 * u.km
         
         # Create new orbit with updated semi-major axis
@@ -347,7 +347,7 @@ class OrbitPropagator:
         self._current_state = new_orbit
         self.period = new_orbit.period
         
-        self.logger.debug(f"New semi-major axis: {new_orbit.a.to(u.km):.1f}")
+        self.logger.info(f"New semi-major axis: {new_orbit.a.to(u.km):.1f}")
     
     @property
     def current_state(self):

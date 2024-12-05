@@ -90,6 +90,20 @@ class ADCSModule:
             # Calculate environmental effects
             self.density = self.environment.atmospheric_density(orbit_state['alt'])
             
+            # Check if we need to initiate burn
+            if self._burn_initiated:
+                # Execute burn
+                self.orbit_propagator.burn()
+                
+                # Check altitude
+                if orbit_state['alt'] < 50.0 + np.random.uniform(0, 10):  # Below ~50km, switch to RX only
+                    from apps.spacecraft.comms import CommsModule  # Import here to avoid circular import
+                    self.logger.warning("Altitude below ~50km - Switching to RX only mode")
+                    # Get reference to COMMS module through subsystems dictionary
+                    comms = next((sys for name, sys in self.subsystems.items() if isinstance(sys, CommsModule)), None)
+                    if comms:
+                        comms.mode = 0  # Set to RX only mode
+            
             # Update attitude based on mode
             self._update_attitude(orbit_state)
             
@@ -160,17 +174,18 @@ class ADCSModule:
                     return
                 
                 # Update the mode directly instead of using requested_mode
-                self.mode = new_mode  # Add this line
+                self.mode = new_mode
                 self.status = 1  # SLEWING
                 self.pointing_start_time = None
                 self.logger.info(f"Beginning slew to requested mode {new_mode}")
 
             elif command_id == 34:  # ADCS_DEORBIT_BURN
                 self.logger.info("Initiating deorbit burn")
-                if self.mode == 5 and self.status == 2:
+                if self.mode == 5 and self.status == 2:  # EOL mode and POINTING status
                     self._burn_initiated = True
+                    self.logger.warning("DEORBIT BURN INITIATED - Spacecraft will be lost!")
                 else:
-                    self.logger.error("Deorbit burn can only be initiated in ADCS mode = EOL and status = POINTING.")
+                    self.logger.error("Deorbit burn can only be initiated in ADCS mode = EOL and status = POINTING")
                 
             else:
                 self.logger.warning(f"Unknown ADCS command ID: {command_id}")
@@ -207,17 +222,18 @@ class ADCSModule:
                 return
             
             # Update the mode directly instead of using requested_mode
-            self.mode = new_mode  # Add this line
+            self.mode = new_mode
             self.status = 1  # SLEWING
             self.pointing_start_time = None
             self.logger.info(f"Beginning slew to requested mode {new_mode}")
 
         elif command_id == 34:  # ADCS_DEORBIT_BURN
             self.logger.info("Initiating deorbit burn")
-            if self.mode == 5 and self.status == 2:
+            if self.mode == 5 and self.status == 2:  # EOL mode and POINTING status
                 self._burn_initiated = True
+                self.logger.warning("DEORBIT BURN INITIATED - Spacecraft will be lost!")
             else:
-                self.logger.error("Deorbit burn can only be initiated in ADCS mode = EOL and status = POINTING.")
+                self.logger.error("Deorbit burn can only be initiated in ADCS mode = EOL and status = POINTING")
             
         else:
             self.logger.warning(f"Unknown ADCS command ID: {command_id}")
