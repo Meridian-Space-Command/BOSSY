@@ -34,25 +34,34 @@ def get_state():
     return jsonify(current_state)
 
 def update_state(lat, lon, velocity, orbit_path=None, future_path=None):
-    """Update spacecraft state, handling date line crossing"""
+    """Update spacecraft state, handling date line crossing more efficiently"""
     global current_state
     current_state['lat'] = float(lat)
     current_state['lon'] = float(lon)
     current_state['velocity'] = velocity.tolist()
     current_state['time'] = SimTime.get_time().isoformat()
     
-    # Handle orbit path updates
+    # Handle orbit path updates more efficiently
     if orbit_path is not None:
         current_state['orbit_path'] = orbit_path
     if future_path is not None:
-        current_state['future_path'] = future_path
+        # Reduce number of future path points
+        if len(future_path) > 60:  # Keep only every 3rd point
+            current_state['future_path'] = future_path[::3]
+        else:
+            current_state['future_path'] = future_path
     
     new_point = [float(lat), float(lon)]
+    
+    # Only keep last 60 points (30 minutes) instead of 2 hours
+    if not current_state.get('orbit_path'):
+        current_state['orbit_path'] = []
     
     if current_state['orbit_path']:
         last_point = current_state['orbit_path'][-1]
         last_lon = last_point[1]
         
+        # Handle date line crossing more efficiently
         if abs(new_point[1] - last_lon) > 180:
             if new_point[1] < last_lon:
                 current_state['orbit_path'].append([new_point[0], -180])
@@ -62,9 +71,10 @@ def update_state(lat, lon, velocity, orbit_path=None, future_path=None):
                 current_state['orbit_path'].append([new_point[0], -180])
     
     current_state['orbit_path'].append(new_point)
-    # Keep 2 hours of history (7200 seconds)
-    if len(current_state['orbit_path']) > 7200:
-        current_state['orbit_path'].pop(0)
+    
+    # Keep only last 60 points instead of 7200
+    if len(current_state['orbit_path']) > 60:
+        current_state['orbit_path'] = current_state['orbit_path'][-60:]
 
 def start_server():
     """Start the web server in a background thread"""
