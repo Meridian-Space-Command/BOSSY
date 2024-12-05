@@ -93,8 +93,7 @@
                     
                     // Add new dots
                     data.orbit_path.forEach((point, index) => {
-                        // Only plot dots every 30 points (30 seconds)
-                        if (index % 30 === 0) {
+                        if (index % 30 === 0) {  // Plot every 30 points
                             var dot = L.circleMarker([point[0], point[1]], {
                                 radius: 2,
                                 color: 'blue',
@@ -105,17 +104,58 @@
                         }
                     });
                     
-                    // Add future orbit points
+                    // Add future orbit points - handle date line crossing
                     if (data.future_path) {
-                        data.future_path.forEach(point => {
+                        let lastLon = null;
+                        data.future_path.forEach((point, index) => {
+                            // Plot every point (now 30s apart) instead of every 3rd point
+                            // Handle date line crossing for future path
+                            if (lastLon !== null && Math.abs(point[1] - lastLon) > 180) {
+                                // Add points at the date line
+                                let crossLat = point[0];
+                                if (point[1] > lastLon) {
+                                    orbitPath.push(L.circleMarker([crossLat, -180], {
+                                        radius: 2,
+                                        color: 'red',
+                                        fillColor: 'red',
+                                        fillOpacity: 0.5,
+                                        stroke: false
+                                    }).addTo(map));
+                                    orbitPath.push(L.circleMarker([crossLat, 180], {
+                                        radius: 2,
+                                        color: 'red',
+                                        fillColor: 'red',
+                                        fillOpacity: 0.5,
+                                        stroke: false
+                                    }).addTo(map));
+                                } else {
+                                    orbitPath.push(L.circleMarker([crossLat, 180], {
+                                        radius: 2,
+                                        color: 'red',
+                                        fillColor: 'red',
+                                        fillOpacity: 0.5,
+                                        stroke: false
+                                    }).addTo(map));
+                                    orbitPath.push(L.circleMarker([crossLat, -180], {
+                                        radius: 2,
+                                        color: 'red',
+                                        fillColor: 'red',
+                                        fillOpacity: 0.5,
+                                        stroke: false
+                                    }).addTo(map));
+                                }
+                            }
+                            
+                            // Add the actual point
                             var dot = L.circleMarker([point[0], point[1]], {
                                 radius: 2,
                                 color: 'red',
                                 fillColor: 'red',
-                                fillOpacity: 1,
+                                fillOpacity: index < data.future_path.length/2 ? 0.8 : 0.4, // Fade second orbit
                                 stroke: false
                             }).addTo(map);
                             orbitPath.push(dot);
+                            lastLon = point[1];
                         });
                     }
                     

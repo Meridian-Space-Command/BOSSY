@@ -268,13 +268,14 @@ class OrbitPropagator:
         return du_kep + np.array([0, 0, 0, ax, ay, az])
 
     def _calculate_future_points(self):
-        """Calculate future orbit points more efficiently"""
+        """Calculate future orbit points for two full orbits"""
         future_points = []
         period_seconds = self.period.to(u.s).value
-        num_points = min(int(period_seconds / 60), 120)  # Max 120 points, one per minute
+        points_per_orbit = min(int(period_seconds / 30), 240)  # Max 240 points per orbit (30s spacing)
         
-        for i in range(num_points):
-            future_time = Time(self.last_update_time) + (i * 60 * u.s)
+        # Calculate points for two orbits
+        for i in range(points_per_orbit * 2):  # Double the points for two orbits
+            future_time = Time(self.last_update_time) + (i * 30 * u.s)  # Changed from 60s to 30s
             future_state = self._current_state.propagate(future_time)
             
             pos = future_state.r
