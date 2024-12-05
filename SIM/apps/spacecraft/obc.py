@@ -81,7 +81,7 @@ class OBCModule:
                 self.logger.info(f"Starting ATS for file: {filename}")
                 try:
                     # Open ats.csv file
-                    with open('./apps/spacecraft/storage/ATS.csv', 'r') as file:
+                    with open(f'./apps/spacecraft/storage/{filename}', 'r') as file:
                         ats = csv.reader(file)
                         # make commands a list of lists
                         commands = [list(row) for row in ats]
