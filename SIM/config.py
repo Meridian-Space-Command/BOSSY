@@ -8,7 +8,7 @@ LOGGER_CONFIG = {
 SIM_CONFIG = {
     'epoch': datetime(2000, 1, 1, 12, 0, 0, tzinfo=timezone.utc),  # Epoch time (don't change this!!!)
     'mission_start_time': datetime(2025, 1, 1, 12, 30, 0, tzinfo=timezone.utc),  # Mission start time
-    'time_step': 1.0,                                     # Simulation time step in seconds
+    'time_step': 10.0,                                     # Simulation time step in seconds
     'download_directory': './BOSSY/MCS/download/',
     'upload_directory': './BOSSY/MCS/upload/',
     'google_maps_api_key': 'AIzaSyDL__brVoZ4VY72_ZnRl5MhLnWLpuP4bsA'
