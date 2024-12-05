@@ -155,43 +155,128 @@ class OrbitPropagator:
 
     def propagate(self, timestamp):
         """Propagate orbit and return complete state"""
-        self.last_update_time = Time(timestamp)
-        
-        # Combine perturbations into a single function
-        def f(t0, u_, k):
-            du_kep = func_twobody(t0, u_, k)
+        try:
+            self.last_update_time = Time(timestamp)
             
-            # Sum all perturbation accelerations
-            ax = ay = az = 0
+            # Only propagate if perturbations are enabled, otherwise use simpler method
             if self.perturbations:
-                for perturbation in self.perturbations:
-                    dax, day, daz = perturbation(t0, u_, k)
-                    ax += dax
-                    ay += day
-                    az += daz
+                self._current_state = self._current_state.propagate(
+                    self.last_update_time,
+                    method=CowellPropagator(f=self._combined_perturbations)
+                )
+            else:
+                self._current_state = self._current_state.propagate(self.last_update_time)
             
-            du_ad = np.array([0, 0, 0, ax, ay, az])
-            return du_kep + du_ad
+            # Get current position and velocity in Earth-centered inertial frame
+            pos = self._current_state.r
+            vel = self._current_state.v
+            
+            # Convert position to lat/lon using astropy coordinates - cache GCRS/ITRS conversion
+            if not hasattr(self, '_last_gcrs_time') or \
+               (self.last_update_time - self._last_gcrs_time).sec > 1.0:
+                gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
+                            obstime=self.last_update_time)
+                self._last_itrs = gcrs.transform_to(ITRS(obstime=self.last_update_time))
+                self._last_gcrs_time = self.last_update_time
+            
+            location = self._last_itrs.represent_as(SphericalRepresentation)
+            
+            # Get lat/lon with proper wrapping
+            lat = location.lat.to(u.deg).value
+            lon = location.lon.wrap_at(180 * u.deg).to(u.deg).value
+            
+            # Track latitude changes to determine direction
+            if not hasattr(self, '_last_lat'):
+                self._last_lat = lat
+                self._crossing_direction = None
+            
+            # Simplified direction tracking
+            if abs(lat) < 1.0:
+                if self._last_lat > lat:
+                    self._crossing_direction = 'south'
+                elif self._last_lat < lat:
+                    self._crossing_direction = 'north'
+            elif abs(lat) > 1.0:
+                self._crossing_direction = None
+            
+            if self._crossing_direction == 'south' and lat > self._last_lat:
+                lat = -abs(lat)
+            elif self._crossing_direction == 'north' and lat < self._last_lat:
+                lat = abs(lat)
+            
+            self._last_lat = lat
 
-        # Propagate orbit with perturbations if enabled
-        if self.perturbations:
-            self._current_state = self._current_state.propagate(
-                self.last_update_time,
-                method=CowellPropagator(f=f)
-            )
-        else:
-            self._current_state = self._current_state.propagate(self.last_update_time)
+            # Calculate eclipse condition less frequently
+            if not hasattr(self, '_last_eclipse_time') or \
+               (self.last_update_time - self._last_eclipse_time).sec > 5.0:
+                self._calculate_eclipse_state(pos)
+                self._last_eclipse_time = self.last_update_time
+            
+            # Get current orbital elements
+            alt = (np.linalg.norm(pos) - self.earth.R).to(u.km).value
+            
+            # Calculate future points less frequently
+            if not hasattr(self, '_last_future_calc') or \
+               (self.last_update_time - self._last_future_calc).sec > 30.0:
+                self._calculate_future_points()
+                self._last_future_calc = self.last_update_time
+
+            # Create complete state dictionary
+            state = {
+                'position': pos.to(u.km).value,
+                'velocity': vel.to(u.km/u.s).value,
+                'sun_vector': self._cached_sun_vector if hasattr(self, '_cached_sun_vector') else np.zeros(3),
+                'nadir_vector': -pos/np.linalg.norm(pos),
+                'velocity_vector': vel/np.linalg.norm(vel),
+                'h_vector': np.cross(pos.value, vel.value),
+                'lat': lat,
+                'lon': lon,
+                'alt': alt,
+                'true_anomaly': self._current_state.nu.to(u.deg).value % 360,
+                'eclipse': self.eclipse_status,
+                'time': timestamp,
+                'semi_major_axis': self._current_state.a.to(u.km).value,
+                'eccentricity': self._current_state.ecc.value,
+                'inclination': self._current_state.inc.to(u.deg).value,
+                'raan': self._current_state.raan.to(u.deg).value,
+                'arg_perigee': self._current_state.argp.to(u.deg).value,
+                'future_path': self.future_orbit if hasattr(self, 'future_orbit') else []
+            }
+            
+            if alt < 50 + np.random.uniform(-7, 7):
+                raise SimulationEndedException("Spacecraft LOST. This is the end my friend.")
+            
+            return state
         
-        # Calculate future orbit points (one full orbit)
+        except Exception as e:
+            self.logger.error(f"Error in propagate: {str(e)}")
+            return None
+
+    def _combined_perturbations(self, t0, u_, k):
+        """Combine all perturbations into a single calculation"""
+        du_kep = func_twobody(t0, u_, k)
+        
+        # Sum all perturbation accelerations at once
+        ax = ay = az = 0
+        if self.perturbations:
+            for perturbation in self.perturbations:
+                dax, day, daz = perturbation(t0, u_, k)
+                ax += dax
+                ay += day
+                az += daz
+        
+        return du_kep + np.array([0, 0, 0, ax, ay, az])
+
+    def _calculate_future_points(self):
+        """Calculate future orbit points more efficiently"""
         future_points = []
         period_seconds = self.period.to(u.s).value
-        num_points = int(period_seconds / 30)  # Points every 30 seconds
+        num_points = min(int(period_seconds / 60), 120)  # Max 120 points, one per minute
         
         for i in range(num_points):
-            future_time = Time(timestamp) + (i * 30 * u.s)
+            future_time = Time(self.last_update_time) + (i * 60 * u.s)
             future_state = self._current_state.propagate(future_time)
             
-            # Convert position to lat/lon
             pos = future_state.r
             gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
                         obstime=future_time)
@@ -202,117 +287,43 @@ class OrbitPropagator:
             lon = location.lon.wrap_at(180 * u.deg).to(u.deg).value
             future_points.append([lat, lon])
         
-        # Get current position and velocity in Earth-centered inertial frame
-        pos = self._current_state.r
-        vel = self._current_state.v
-        
-        # Convert position to lat/lon using astropy coordinates
-        gcrs = GCRS(CartesianRepresentation(x=pos[0], y=pos[1], z=pos[2]), 
-                    obstime=self.last_update_time)
-        itrs = gcrs.transform_to(ITRS(obstime=self.last_update_time))
-        location = itrs.represent_as(SphericalRepresentation)
-        
-        # Get lat/lon with proper wrapping
-        lat = location.lat.to(u.deg).value
-        lon = location.lon.wrap_at(180 * u.deg).to(u.deg).value
-        
-        # Track latitude changes to determine direction
-        if not hasattr(self, '_last_lat'):
-            self._last_lat = lat
-            self._crossing_direction = None
-        
-        # Near equator, determine crossing direction
-        if abs(lat) < 1.0:  # Near equator
-            if self._last_lat > lat:
-                self._crossing_direction = 'south'  # Heading south
-            elif self._last_lat < lat:
-                self._crossing_direction = 'north'  # Heading north
-        elif abs(lat) > 1.0:  # Away from equator
-            self._crossing_direction = None
-        
-        # Force continuation of direction through equator
-        if self._crossing_direction == 'south' and lat > self._last_lat:
-            lat = -abs(lat)  # Force into southern hemisphere
-        elif self._crossing_direction == 'north' and lat < self._last_lat:
-            lat = abs(lat)   # Force into northern hemisphere
-        
-        self._last_lat = lat
+        self.future_orbit = future_points
 
-        # Calculate eclipse condition using position vectors
-        # Get Sun position using astropy
-        sun_gcrs = get_sun(self.last_update_time)
-        # Convert from AU to km
-        r_sun = np.array([
-            sun_gcrs.cartesian.x.to(u.km).value,
-            sun_gcrs.cartesian.y.to(u.km).value,
-            sun_gcrs.cartesian.z.to(u.km).value
-        ]) * u.km
-        
-        # Calculate vectors
-        sun_to_sc = pos - r_sun  # Vector from Sun to spacecraft
-        r_earth = -pos  # Vector from spacecraft to Earth center
-        
-        # Calculate angles and distances for eclipse geometry
-        sun_angle = np.arccos(np.dot(-sun_to_sc, r_earth) / 
-                             (np.linalg.norm(sun_to_sc) * np.linalg.norm(r_earth)))
-        earth_angular_radius = np.arcsin(self.earth.R / np.linalg.norm(r_earth))
-        sun_angular_radius = np.arcsin(self.sun.R / np.linalg.norm(sun_to_sc))
-        
-        # Determine eclipse condition
-        if sun_angle < earth_angular_radius - sun_angular_radius:
-            self._in_eclipse = True
-            self._eclipse_type = 'umbra'
-        elif sun_angle < earth_angular_radius + sun_angular_radius:
-            self._in_eclipse = True
-            self._eclipse_type = 'penumbra'
-        else:
+    def _calculate_eclipse_state(self, pos):
+        """Calculate eclipse state and cache results"""
+        try:
+            sun_gcrs = get_sun(self.last_update_time)
+            r_sun = np.array([
+                sun_gcrs.cartesian.x.to(u.km).value,
+                sun_gcrs.cartesian.y.to(u.km).value,
+                sun_gcrs.cartesian.z.to(u.km).value
+            ]) * u.km
+            
+            self._cached_sun_vector = r_sun.value / np.linalg.norm(r_sun.value)
+            
+            sun_to_sc = pos - r_sun
+            r_earth = -pos
+            
+            sun_angle = np.arccos(np.dot(-sun_to_sc, r_earth) / 
+                                 (np.linalg.norm(sun_to_sc) * np.linalg.norm(r_earth)))
+            earth_angular_radius = np.arcsin(self.earth.R / np.linalg.norm(r_earth))
+            sun_angular_radius = np.arcsin(self.sun.R / np.linalg.norm(sun_to_sc))
+            
+            if sun_angle < earth_angular_radius - sun_angular_radius:
+                self._in_eclipse = True
+                self._eclipse_type = 'umbra'
+            elif sun_angle < earth_angular_radius + sun_angular_radius:
+                self._in_eclipse = True
+                self._eclipse_type = 'penumbra'
+            else:
+                self._in_eclipse = False
+                self._eclipse_type = None
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating eclipse: {str(e)}")
             self._in_eclipse = False
             self._eclipse_type = None
-            
-        self.logger.debug(f"Eclipse state: {self._eclipse_type}")
-        
-        # Get current orbital elements
-        alt = (np.linalg.norm(pos) - self.earth.R).to(u.km).value  # Height above Earth's surface
-        
-        # Get sun vector in GCRS
-        sun_gcrs = get_sun(Time(timestamp))
-        sun_vector = sun_gcrs.cartesian.xyz.value * u.au.to(u.km)
-        
-        # Calculate additional state vectors
-        pos_unit = pos / np.linalg.norm(pos)
-        vel_unit = vel / np.linalg.norm(vel)
-        h_vector = np.cross(pos.value, vel.value) * u.km**2/u.s  # Angular momentum vector
-        
-        # Create complete state dictionary
-        state = {
-            'position': pos.to(u.km).value,  # [x, y, z] in km
-            'velocity': vel.to(u.km/u.s).value,  # [vx, vy, vz] in km/s
-            'sun_vector': sun_vector,  # Unit vector to Sun
-            'nadir_vector': -pos_unit.value,  # Unit vector to Earth center
-            'velocity_vector': vel_unit.value,  # Unit vector in velocity direction
-            'h_vector': h_vector.value,  # Orbital angular momentum vector
-            'lat': lat,
-            'lon': lon,
-            'alt': alt,  # Height above Earth's surface in km
-            'true_anomaly': self._current_state.nu.to(u.deg).value % 360,
-            'eclipse': self.eclipse_status,
-            'time': timestamp,
-            # Orbital elements
-            'semi_major_axis': self._current_state.a.to(u.km).value,
-            'eccentricity': self._current_state.ecc.value,
-            'inclination': self._current_state.inc.to(u.deg).value,
-            'raan': self._current_state.raan.to(u.deg).value,
-            'arg_perigee': self._current_state.argp.to(u.deg).value,
-            'future_path': self.future_orbit,  # Add pre-calculated future points
-        }
-        
-        # Check for reentry
-        if state['alt'] < 50 + np.random.uniform(-7, 7):
-            self.logger.debug("Altitude is less than 50km - stopping simulation")
-            raise SimulationEndedException("Spacecraft LOST. This is the end my friend.")
-        
-        return state
-    
+
     def burn(self):
         """Initiate deorbit burn by reducing semi-major axis"""
         self.logger.info("Initiating deorbit burn")
