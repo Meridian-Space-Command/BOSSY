@@ -373,7 +373,7 @@ class ADCSModule:
         MAX_RATE = 100.0  # Maximum rate in deg/s
         
         # Get current rates and apply random disturbances to get new rates
-        new_rates = self.angular_rate + np.random.uniform(0.01, 0.03, 3)  # deg/s
+        new_rates = self.angular_rate + np.random.uniform(0.001, 0.003, 3)  # deg/s
         new_rates = np.clip(new_rates, -MAX_RATE, MAX_RATE)  # Limit maximum rates
         
         # Update quaternion based on rates
