@@ -658,6 +658,17 @@
 					<BaseContainer containerRef="CommandPacket"/>
 				</CommandContainer>
 			</MetaCommand>	
+			<MetaCommand name="OBC_STOP_ATS" shortDescription="Stops ALL ATS processes">
+				<BaseMetaCommand metaCommandRef="CommandPacket">
+					<ArgumentAssignmentList>
+						<ArgumentAssignment argumentName="Command_ID" argumentValue="16" />
+					</ArgumentAssignmentList>
+				</BaseMetaCommand>
+				<CommandContainer name="OBC_STOP_ATS">
+					<EntryList/>
+					<BaseContainer containerRef="CommandPacket"/>
+				</CommandContainer>
+			</MetaCommand>	
 
 			<!-- CDH Commands -->
 			<MetaCommand name="CDH_SET_STATE" shortDescription="Sets the CDH state">	
